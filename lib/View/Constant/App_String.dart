@@ -9,4 +9,9 @@ class AppString {
   static const String phone = 'Number';
   static const String email = 'Email';
 
+  // Admin Show Report types (passed as Get.arguments)
+  static const String todayTotal = 'todayTotal';
+  static const String monthlyTotal = 'monthlyTotal';
+  static const String todayPurchase = 'todayPurchase';
+  static const String monthlyPurchase = 'monthlyPurchase';
 }

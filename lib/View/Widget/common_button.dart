@@ -43,8 +43,8 @@ class CommonButton extends StatelessWidget {
             width: 2,
           ),
           color: borderColor != null
-              ? Color(0xffC8102E)
-              : (btnColor ?? Color(0xffC8102E)),
+              ? Color(0xffE81A1C)
+              : (btnColor ?? Color(0xffE81A1C)),
         ),
         child: Center(
             child: isLoading

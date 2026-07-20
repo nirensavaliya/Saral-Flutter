@@ -1,9 +1,11 @@
+import 'dart:convert';
+
 import 'package:get_storage/get_storage.dart';
 
 
 
-class GetStorageHelper{
-  static String loginToken = "loginToken";
+class GetStorageData{
+  // static String loginToken = "loginToken";
   static String token = "token";
   static String isAdmin = "IsAdmin";
   static String isCustomer = "IsCustomer";
@@ -12,6 +14,8 @@ class GetStorageHelper{
   static String companyCode = "CompanyCode";
   static String companyToken = "companyToken";
   static String isOtpVerified = "isOtpVerified";
+  static String userName = "userName";
+  static String customerMobile = "customerMobile";
 
   /// <<< To save object data --------- >>>
   static saveString(String key, value) async {
@@ -63,5 +67,16 @@ class GetStorageHelper{
     return box.hasData(key);
   }
 
+  static Future<void> saveObject(String key, value) async {
+    final box = GetStorage();
+    String allData = jsonEncode(value);
+    await box.write(key, allData);
+  }
+
+  static readObject(String key) {
+    final box = GetStorage();
+    var result = box.read(key);
+    return jsonDecode(result);
+  }
 
 }

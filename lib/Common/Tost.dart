@@ -23,9 +23,14 @@ class Utils{
     required String message,
     bool isSuccess = true,
   }) {
-    toastification.show(
-      context: context,
+    // Clear any toast that is mid-dismiss so Dismissible is not left in the tree
+    // (common when toast + Get.back / route pop happen together).
+    toastification.dismissAll(delayForAnimation: false);
 
+    toastification.show(
+      // Do not pass page context — ToastificationWrapper in main.dart owns the overlay.
+      // Passing a route context that gets popped causes:
+      // "A dismissed Dismissible widget is still part of the tree."
       title: Text(
         title,
         style: TextStyle(
@@ -62,7 +67,8 @@ class Utils{
       showProgressBar: false,
       closeOnClick: true,
       pauseOnHover: true,
-      dragToClose: true,
+      dragToClose: false,
+      dismissDirection: DismissDirection.none,
       borderRadius: BorderRadius.circular(12),
     );
   }

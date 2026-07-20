@@ -62,6 +62,7 @@ class ItemListData {
   int? subCategoryID;
   double? stockQty;
   String? gstTaxName;
+  int? gstCodeId;
   String? subCategory;
   String? name;
   String? imageFileName;
@@ -71,6 +72,7 @@ class ItemListData {
   double? minRequiredStock;
   double? maxRequiredStock;
   String? mUnitCode;
+  int? orderQtyInterval;
 
   ItemListData(
       {this.itemName,
@@ -107,6 +109,7 @@ class ItemListData {
         this.subCategoryID,
         this.stockQty,
         this.gstTaxName,
+        this.gstCodeId,
         this.subCategory,
         this.name,
         this.imageFileName,
@@ -115,7 +118,8 @@ class ItemListData {
         this.settingCode,
         this.minRequiredStock,
         this.maxRequiredStock,
-        this.mUnitCode});
+        this.mUnitCode,
+        this.orderQtyInterval});
 
   ItemListData.fromJson(Map<String, dynamic> json) {
     itemName = json['itemName'];
@@ -152,15 +156,17 @@ class ItemListData {
     subCategoryID = json['subCategoryID'];
     stockQty = json['stockQty'];
     gstTaxName = json['gstTaxName'];
+    gstCodeId = json['gstCodeId'];
     subCategory = json['subCategory'];
     name = json['name'];
     imageFileName = json['imageFileName'];
-    itemImage = json['itemImage'];
+    itemImage = json['imageUrl'];
     settingValue = json['settingValue'];
     settingCode = json['settingCode'];
     minRequiredStock = json['minRequiredStock'];
     maxRequiredStock = json['maxRequiredStock'];
     mUnitCode = json['mUnitCode'];
+    orderQtyInterval = json['orderQtyInterval'];
   }
 
   String? get displayImageUrl {
@@ -209,6 +215,7 @@ class ItemListData {
     data['subCategoryID'] = this.subCategoryID;
     data['stockQty'] = this.stockQty;
     data['gstTaxName'] = this.gstTaxName;
+    data['gstCodeId'] = this.gstCodeId;
     data['subCategory'] = this.subCategory;
     data['name'] = this.name;
     data['imageFileName'] = this.imageFileName;
@@ -218,6 +225,7 @@ class ItemListData {
     data['minRequiredStock'] = this.minRequiredStock;
     data['maxRequiredStock'] = this.maxRequiredStock;
     data['mUnitCode'] = this.mUnitCode;
+    data['orderQtyInterval'] = this.orderQtyInterval;
     return data;
   }
 }

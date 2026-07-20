@@ -2,15 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:saral/View/Constant/App_Colors.dart';
 import 'package:saral/View/Constant/App_font.dart';
 import 'package:saral/View/Widget/Common_Text.dart';
-
+import 'package:saral/View/Widget/common_button.dart';
 
 class AddToCartBottomBar extends StatelessWidget {
-  const AddToCartBottomBar({super.key});
+  const AddToCartBottomBar({
+    super.key,
+    required this.totals,
+    this.onPlaceOrder,
+    this.isPlacingOrder = false,
+    this.buttonName = "Place Order",
+  });
+
+  final Map<String, String> totals;
+  final VoidCallback? onPlaceOrder;
+  final bool isPlacingOrder;
+  final String buttonName;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(15, 10, 15, 12),
+      padding: const EdgeInsets.fromLTRB(15, 12, 15, 16),
       decoration: const BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -21,64 +32,130 @@ class AddToCartBottomBar extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              CommonText(
-                text: "Sub Total",
-                fontFamily: FontFamily.poppinsRegular,
-                fontSize: 13,
-              ),
-              CommonText(
-                text: "₹78,952",
-                fontFamily: FontFamily.poppinsBold,
-                fontSize: 15,
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 8),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              CommonText(
-                text: "Delivery",
-                fontFamily: FontFamily.poppinsRegular,
-                fontSize: 13,
-              ),
-              CommonText(
-                text: "Free",
-                fontFamily: FontFamily.poppinsBold,
-                fontSize: 15,
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                elevation: 0,
-                backgroundColor: AppColors.btnColors,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: CommonText(
-                text: "Check Out",
-                fontFamily: FontFamily.poppinsSemiBold,
-                color: Colors.white,
-                fontSize: 16,
-              ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CommonText(
+              text: "Final Total",
+              fontFamily: FontFamily.poppinsSemiBold,
+              fontSize: 16,
+              color: Colors.black87,
             ),
+            const SizedBox(height: 5),
+            _summaryRow("Total", totals['total'] ?? '0.00'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    children: [
+                      _summaryRow(
+                        "Dis. Total",
+                        totals['discountTotal'] ?? '0.00',
+                        muted: true,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 15,),
+                Expanded(
+                  child: Column(
+                    children: [
+                      _summaryRow(
+                        "CGST",
+                        totals['cGstTotal'] ?? '0.00',
+                        muted: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    children: [
+                      _summaryRow(
+                        "SGST",
+                        totals['sGstTotal'] ?? '0.00',
+                        muted: true,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 15,),
+                Expanded(
+                  child: Column(
+                    children: [
+                      _summaryRow(
+                        "IGST",
+                        totals['iGstTotal'] ?? '0.00',
+                        muted: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            _summaryRow(
+              "TotalItem",
+              totals['totalItem'] ?? '0',
+              muted: true,
+            ),
+            Divider(color: Colors.grey.shade300, height: 16),
+            _summaryRow(
+              "NetTotal",
+              totals['netTotal'] ?? '0.00',
+              bold: true,
+              highlight: true,
+            ),
+            const SizedBox(height: 10),
+            CommonButton(
+              btnName: buttonName,
+              isLoading: isPlacingOrder,
+              onTap: onPlaceOrder,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _summaryRow(
+    String label,
+    String value, {
+    bool muted = false,
+    bool bold = false,
+    bool highlight = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: CommonText(
+              text: label,
+              fontFamily: bold
+                  ? FontFamily.poppinsBold
+                  : FontFamily.poppinsMedium,
+              fontSize: 13,
+              color: muted ? Colors.black54 : Colors.black87,
+            ),
+          ),
+          CommonText(
+            text: value,
+            fontFamily: bold
+                ? FontFamily.poppinsBold
+                : FontFamily.poppinsSemiBold,
+            fontSize: bold ? 15 : 13,
+            color: highlight ? AppColors.brandRed : Colors.black87,
           ),
         ],
       ),

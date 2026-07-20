@@ -35,6 +35,7 @@ class ItemData {
   String? imageUrl;
   double? price;
   double? salesDiscountper;
+  int? orderQtyInterval;
 
   ItemData(
       {this.itemid,
@@ -43,7 +44,8 @@ class ItemData {
         this.unitCode,
         this.price,
         this.salesDiscountper,
-        this.imageUrl,});
+        this.imageUrl,
+        this.orderQtyInterval,});
 
   ItemData.fromJson(Map<String, dynamic> json) {
     itemid = json['itemid'];
@@ -51,8 +53,9 @@ class ItemData {
     gstCodeId = json['gstCodeId'];
     unitCode = json['unitCode'];
     price = (json['price'] != null) ? (json['price'] as num).toDouble() : null;
-    salesDiscountper = json['salesDiscountper'];
+    salesDiscountper = (json['salesDiscountper'] as num?)?.toDouble();
     imageUrl = json['imageUrl'];
+    orderQtyInterval = json['orderQtyInterval'];
   }
 
   Map<String, dynamic> toJson() {
@@ -64,6 +67,7 @@ class ItemData {
     data['price'] = this.price;
     data['salesDiscountper'] = this.salesDiscountper;
     data['imageUrl'] = this.imageUrl;
+    data['orderQtyInterval'] = this.orderQtyInterval;
     return data;
   }
 }

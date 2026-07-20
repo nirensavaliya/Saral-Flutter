@@ -12,6 +12,10 @@ import 'package:saral/View/Constant/App_font.dart';
 import 'package:saral/View/Screen/Home/Model/GetItemListModel.dart';
 import 'package:saral/View/Screen/Home/Model/GetReportItemListModel.dart';
 import 'package:saral/View/Screen/Home/Model/categoryListModel.dart';
+import 'package:saral/View/Screen/Sale Order/Model/get_gst_model.dart';
+
+import '../../../../Common/Global.dart';
+import '../Model/off_image_model.dart';
 
 class HomeController extends GetxController {
   final CarouselSliderController carouselController =
@@ -21,11 +25,13 @@ class HomeController extends GetxController {
   RxList<CategoryListData> categoryListData = <CategoryListData>[].obs;
   Rx<CategoryListData?> selectedCategory = Rx<CategoryListData?>(null);
   RxBool isGetCategory = false.obs;
+  /// VIEW ALL → full-screen categories grid
+  RxBool showAllCategories = false.obs;
   final ApiService _apiService = ApiService();
   RxBool isItemList = false.obs;
   RxInt selectedIndex = 0.obs;
   RxInt page = 1.obs;
-  final int pageSize = 6;
+  final int pageSize = 10;
   RxBool isLoadingMore = false.obs;
   RxBool hasMoreData = true.obs;
   ScrollController scrollController = ScrollController();
@@ -41,6 +47,16 @@ class HomeController extends GetxController {
   ];
 
   void changeTab(int index) {
+    final bool isAdmin = GetStorageData.readBoolean(GetStorageData.isAdmin);
+    final bool isEmployee =
+    GetStorageData.readBoolean(GetStorageData.isEmployee);
+    // Sirf customer / guest dashboard (Admin/Employee nahi)
+    // index 1 = Orders, index 3 = Profile (Contact = 2 open for guest)
+    final bool isCustomerFlow = !isAdmin && !isEmployee;
+    if (isCustomerFlow && (index == 1 || index == 3) && !isLoggedIn) {
+      Global.showLoginRequiredDialog();
+      return;
+    }
     selectedIndex.value = index;
   }
 
@@ -74,7 +90,38 @@ class HomeController extends GetxController {
   @override
   void onReady() {
     super.onReady();
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    await loadGstTaxList();
+    apiOfferImageMessage();
+    getCategoryList();
     itemListApi();
+  }
+
+  Future<void> loadGstTaxList() async {
+    if (ApiConstant.gstList.isNotEmpty) return;
+    try {
+      final token = GetStorageData.readString(GetStorageData.token);
+      final response = await _apiService.getRequest(
+        ApiConstant.getGstTaxList,
+        headers: {
+          "Authorization": "Bearer $token",
+          "accept": "*/*",
+        },
+      );
+      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+        final model = GetGstTaxListModel.fromJson(
+          response.data as Map<String, dynamic>,
+        );
+        if (model.statusCode == 200 || model.statusCode == null) {
+          ApiConstant.gstList = model.data ?? [];
+        }
+      }
+    } catch (e) {
+      log('loadGstTaxList error: $e');
+    }
   }
   @override
   void onClose() {
@@ -84,8 +131,8 @@ class HomeController extends GetxController {
   }
 
   void _onScroll() {
-    print("pixels = ${scrollController.position.pixels}");
-    print("max = ${scrollController.position.maxScrollExtent}");
+    /*print("pixels = ${scrollController.position.pixels}");
+    print("max = ${scrollController.position.maxScrollExtent}");*/
 
     if (selectedCategory.value != null) return;
 
@@ -104,8 +151,8 @@ class HomeController extends GetxController {
     try {
       isGetCategory.value = true;
       CommonLoader.show(Get.context!);
-      final companyToken = GetStorageHelper.readString(
-        GetStorageHelper.loginToken,
+      final companyToken = GetStorageData.readString(
+        GetStorageData.token,
       );
       var response = await _apiService.getRequest(
         ApiConstant.getCategoryList,
@@ -131,6 +178,7 @@ class HomeController extends GetxController {
 
     if (value == null) return;
 
+    showAllCategories.value = false;
     selectedCategory.value = value;
 
     page.value = 1;
@@ -140,6 +188,26 @@ class HomeController extends GetxController {
 
     await itemListApi();
   }
+
+  void openAllCategories() {
+    selectedCategory.value = null;
+    showAllCategories.value = true;
+  }
+
+  void closeAllCategories() {
+    showAllCategories.value = false;
+  }
+
+  Future<void> clearCategorySelection() async {
+    selectedCategory.value = null;
+    showAllCategories.value = false;
+    page.value = 1;
+    hasMoreData.value = true;
+    isLoadingMore.value = false;
+    itemList.clear();
+    await itemListApi();
+  }
+
   void _updateHasMorePages(Map<String, dynamic> responseData,
       int fetchedCount) {
     final totalPages = _readPagingInt(responseData['totalPages']);
@@ -180,57 +248,6 @@ class HomeController extends GetxController {
     return int.tryParse(value.toString());
   }
 
-  // Future<void> getCategoryListPagination({
-  //   bool isLoadMore = false,
-  // }) async {
-  //   if (isLoadMore) {
-  //     if (isLoadingMore.value || !hasMoreData.value) return;
-  //     isLoadingMore.value = true;
-  //   } else {
-  //     if (isItemList.value) return;
-  //
-  //     isItemList.value = true;
-  //     page.value = 1;
-  //     hasMoreData.value = true;
-  //     itemListData.clear();
-  //   }
-  //
-  //   try {
-  //
-  //     final token = GetStorageHelper.readString(
-  //       GetStorageHelper.loginToken,
-  //     );
-  //
-  //     final response = await _apiService.getRequest(
-  //       "${ApiConstant.getItemListByBrandAndCategoryPagingPageSize6}$pageSize&PageNumber=${page.value}",
-  //       headers: {
-  //         "Authorization": "Bearer $token",
-  //       },
-  //     );
-  //
-  //     final model = GetReportItemListModel.fromJson(response.data);
-  //
-  //     final newData = model.data ?? [];
-  //
-  //     if (isLoadMore) {
-  //       itemListData.addAll(newData);
-  //     } else {
-  //       itemListData.value = newData;
-  //     }
-  //
-  //     if (newData.length < pageSize) {
-  //       hasMoreData.value = false;
-  //     } else {
-  //       page.value++;
-  //     }
-  //
-  //   } catch (e) {
-  //     debugPrint(e.toString());
-  //   } finally {
-  //     isItemList.value = false;
-  //     isLoadingMore.value = false;
-  //   }
-  // }
   Future<void> itemListApi({bool loadMore = false}) async {
     if (_usesPagingApi) {
       if (loadMore) {
@@ -248,8 +265,7 @@ class HomeController extends GetxController {
     if (context == null) return;
 
     try {
-      final token =
-      GetStorageHelper.readString(GetStorageHelper.loginToken);
+      final token = GetStorageData.readString(GetStorageData.token);
 
       if (loadMore) {
         isLoadingMore.value = true;
@@ -265,23 +281,24 @@ class HomeController extends GetxController {
       String url;
       final bool noCategory = selectedCategory.value?.categoryID == null;
 
-      if (noCategory) {
+      // if (noCategory) {
         url =
         "${ApiConstant.getItemListByBrandAndCategoryPagingPageSize6}?PageNumber=${page.value}&PageSize=$pageSize";
-      } else {
-        url =
-        "${ApiConstant.getItemList}?Categoryid=${selectedCategory.value!
-            .categoryID}";
-      }
+      // } else {
+      //   url =
+      //   "${ApiConstant.getItemList}?Categoryid=${selectedCategory.value!
+      //       .categoryID}";
+      // }
 
       final response = await _apiService.getRequest(
         url,
         headers: {
           "Authorization": "Bearer $token",
+          "accept": "*/*"
         },
       );
 
-      if (noCategory) {
+      // if (noCategory) {
         final model = GetItemListModel.fromJson(_normalizePagingResponse(response.data));
         if (model.statusCode == 200) {
           final mapped = (model.data ?? []).map((e) {
@@ -291,6 +308,10 @@ class HomeController extends GetxController {
               unitCode: e.unitCode,
               price: e.price,
               itemImage: e.imageUrl,
+              salesDiscountPER: e.salesDiscountper,
+              orderQtyInterval: e.orderQtyInterval,
+              gstCodeId: e.gstCodeId,
+              gstTaxName: ApiConstant.gstTaxNameForCode(e.gstCodeId),
             );
           }).toList();
 
@@ -301,22 +322,61 @@ class HomeController extends GetxController {
           }
           _updateHasMorePages(response.data, mapped.length);
         }
-      } else {
-        GetReportItemListModel model = GetReportItemListModel.fromJson(
-            response.data);
-        if (model.statusCode == 200) {
-          itemList.value = model.data ?? [];
-          itemList.sort((a, b) =>
-              (a.itemName ?? '').toLowerCase().compareTo(
-                  (b.itemName ?? '').toLowerCase()));
-        }
-      }
+      // } else {
+      //   GetReportItemListModel model = GetReportItemListModel.fromJson(
+      //       response.data);
+      //   if (model.statusCode == 200) {
+      //     itemList.value = model.data ?? [];
+      //     itemList.sort((a, b) =>
+      //         (a.itemName ?? '').toLowerCase().compareTo(
+      //             (b.itemName ?? '').toLowerCase()));
+      //   }
+      // }
     }
     catch (e) {
       log('ERROR-Something went wrong $e');
     } finally {
       isItemListLoading.value = false;
       isLoadingMore.value = false;
+    }
+  }
+
+  var offerImage = ''.obs;
+  var isOfferImageLoading = true.obs;
+
+  Future<void> apiOfferImageMessage() async {
+    isOfferImageLoading.value = true;
+    try {
+      final companyToken = GetStorageData.readString(
+        GetStorageData.token,
+      );
+      final response = await _apiService.getRequest(
+        ApiConstant.GetOfferImage,
+        headers: {"Authorization": "Bearer $companyToken"},
+      );
+
+      if (response.statusCode == 200) {
+        OfferImageModel model = OfferImageModel.fromJson(response.data);
+
+        if (model.data != null) {
+          ApiConstant.offerImage = model.data!;
+          offerImage.value = model.data!;
+          update();
+        } else {
+          ApiConstant.offerImage = "";
+          offerImage.value = "";
+          update();
+        }
+      } else {
+        ApiConstant.offerImage = "";
+        offerImage.value = "";
+        update();
+      }
+    } catch (_) {
+      ApiConstant.offerImage = "";
+      offerImage.value = "";
+    } finally {
+      isOfferImageLoading.value = false;
     }
   }
 }

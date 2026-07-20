@@ -12,6 +12,8 @@ import 'package:saral/View/Screen/Login/Model/otp_model.dart';
 import 'package:saral/View/Utils/App_Routes.dart';
 import 'package:sms_autofill/sms_autofill.dart';
 
+import 'Company_Controller.dart';
+
 class LoginController extends GetxController with GetSingleTickerProviderStateMixin, CodeAutoFill {
   TextEditingController userNameController = TextEditingController();
   TextEditingController mobileController = TextEditingController();
@@ -40,13 +42,14 @@ class LoginController extends GetxController with GetSingleTickerProviderStateMi
   bool isEmployee = true;
   RxBool showOtpScreen = false.obs;
   RxBool isVerifyOtpLoading = false.obs;
+  CompanyController companyCodeController = Get.find<CompanyController>();
 
   @override
   void onInit() {
     super.onInit();
+    companyCodeController.autoLogin(Get.context!);
     tabController = TabController(length: 2, vsync: this);
-    apiSelectCompany();
-    apiCallGetCompanyList();
+
     final args = Get.arguments as Map<String, dynamic>?;
 
     if (args != null) {
@@ -243,38 +246,38 @@ class LoginController extends GetxController with GetSingleTickerProviderStateMi
     return otp;
   }
 
-  void verifyOtp(String enteredOtp) async {
-    GetStorageHelper.saveString(
-      GetStorageHelper.isOtpVerified,
-      "true",
-    );
+  void verifyOtp(String enteredOtp, {BuildContext? context}) async {
     try {
       isVerifyOtpLoading.value = true;
-
-      CommonLoader.show(Get.context!);
       print("VERIFYING OTP: $enteredOtp");
 
       await Future.delayed(const Duration(seconds: 1));
-      Utils().showToast(
-        context: Get.context!,
-        title: "Success",
-        message: "Login Successfully",
-        isSuccess: true,
-      );
-      GetStorageHelper.saveString(GetStorageHelper.isOtpVerified, "true");
-      
+
+      GetStorageData.saveString(GetStorageData.isOtpVerified, "true");
+
       if (isEmployee == false) {
-        await GetStorageHelper.saveString(GetStorageHelper.role, "Customer");
-        await GetStorageHelper.saveBoolean(GetStorageHelper.isCustomer, true);
-        Get.offAllNamed(AppRoutes.customerViewScreen);
+        setRole("Customer");
+        Utils().showToast(
+          context: Get.context!,
+          title: "Success",
+          message: "Login Successfully",
+          isSuccess: true,
+        );
+        isVerifyOtpLoading.value = false;
+        Get.offAllNamed(AppRoutes.dashboardScreen);
       } else {
+        Utils().showToast(
+          context: Get.context!,
+          title: "Success",
+          message: "Login Successfully",
+          isSuccess: true,
+        );
         await apiCallIsUserIsAdmin(Get.context!);
+        isVerifyOtpLoading.value = false;
       }
     } catch (e) {
       print(e);
-    } finally {
       isVerifyOtpLoading.value = false;
-      CommonLoader.hide();
     }
   }
 
@@ -319,7 +322,7 @@ class LoginController extends GetxController with GetSingleTickerProviderStateMi
       }
 
       final companyToken =
-      GetStorageHelper.readString(GetStorageHelper.loginToken);
+      GetStorageData.readString(GetStorageData.token);
       print("setOpt company token-----------$companyToken");
       final response = await _apiService.getRequest(
         apiUrl,
@@ -380,18 +383,18 @@ class LoginController extends GetxController with GetSingleTickerProviderStateMi
   }
 
   Future<void> userLogin(BuildContext context) async {
-    isEmployee = true;   // ADD THIS
+    isEmployee = true;
 
     print("isEmployee = $isEmployee");
     final name = userNameController.text.trim();
     final password = pwdController.text.trim();
-    await GetStorageHelper.removeData(GetStorageHelper.isOtpVerified);
+    isLoading.value = true;
+    CommonLoader.show(context);
+    await GetStorageData.removeData(GetStorageData.isOtpVerified);
     try {
-      isLoading.value = true;
-      CommonLoader.show(context);
       await apiSelectCompany();
       final companyToken =
-      GetStorageHelper.readString(GetStorageHelper.companyToken);
+      GetStorageData.readString(GetStorageData.token);
       print("Company Token--- :$companyToken");
       final response = await _apiService.postRequest(
         ApiConstant.userLogin,
@@ -411,11 +414,12 @@ class LoginController extends GetxController with GetSingleTickerProviderStateMi
           response.data["data"] != null) {
 
         final token = response.data["data"]["token"];
+        if (token is String && token.isNotEmpty) {
+          await GetStorageData.saveString(GetStorageData.token, token);
+        }
+        // GetStorageData.saveString(GetStorageData.token, token);
 
-        await GetStorageHelper.saveString(
-          GetStorageHelper.loginToken,
-          token,
-        );
+        await GetStorageData.saveString(GetStorageData.userName, name);
         setRole("Employee");
         CommonLoader.hide();
         // Utils().showToast(
@@ -451,14 +455,14 @@ class LoginController extends GetxController with GetSingleTickerProviderStateMi
     isEmployee = false;
 
     final number = mobileController.text.trim();
-    await GetStorageHelper.removeData(GetStorageHelper.isOtpVerified);
+    isLoading.value = true;
+    CommonLoader.show(context);
+    await GetStorageData.removeData(GetStorageData.isOtpVerified);
     try {
-      isLoading.value = true;
-      CommonLoader.show(context);
       await apiSelectCompany();
 
       final companyToken =
-      GetStorageHelper.readString(GetStorageHelper.companyToken);
+      GetStorageData.readString(GetStorageData.token);
 
       print("Company Token : $companyToken");
 
@@ -473,14 +477,14 @@ class LoginController extends GetxController with GetSingleTickerProviderStateMi
       if (response.data["statusCode"] == 200 &&
           response.data["data"] != null) {
         final token = response.data["data"]["token"];
-        await GetStorageHelper.saveString(
-          GetStorageHelper.token,
-          token,
-        );
+        if (token is String && token.isNotEmpty) {
+          await GetStorageData.saveString(GetStorageData.token, token);
+        }
+        // GetStorageData.saveString(GetStorageData.token, token);
 
-        await GetStorageHelper.saveString(
-          GetStorageHelper.loginToken,
-          token,
+        await GetStorageData.saveString(
+          GetStorageData.customerMobile,
+          number,
         );
         setRole("Customer");
         // Utils().showToast(
@@ -511,7 +515,7 @@ class LoginController extends GetxController with GetSingleTickerProviderStateMi
   Future<void> apiCallIsUserIsAdmin(BuildContext context) async {
     try {
       final loginToken =
-      GetStorageHelper.readString(GetStorageHelper.loginToken);
+      GetStorageData.readString(GetStorageData.token);
 
       final response = await _apiService.getRequest(
         ApiConstant.isUserIsAdmin,
@@ -533,7 +537,7 @@ class LoginController extends GetxController with GetSingleTickerProviderStateMi
 
         } else {
           setRole("Employee");
-          Get.offAllNamed(AppRoutes.dashboardScreen);
+          Get.offAllNamed(AppRoutes.employeeHomeScreen);
           print('isAdmin:: else---- ${response.data}');
 
         }
@@ -556,6 +560,7 @@ class LoginController extends GetxController with GetSingleTickerProviderStateMi
       );
     }
   }
+
   Future<void> apiCallGetCompanyList() async {
     code = "YZ9645";
     codeController.forEach((element) {
@@ -573,29 +578,27 @@ class LoginController extends GetxController with GetSingleTickerProviderStateMi
     print("Select Company list -----${response.data}");
     final companyList = CompanyListModel.fromJson(response.data);
     if (companyList.statusCode == 200) {
-      GetStorageHelper.saveString(GetStorageHelper.companyCode, code);
+      GetStorageData.saveString(GetStorageData.companyCode, code);
       companyData = companyList.data??[];
       update();
     }
   }
+
   Future<void> apiSelectCompany() async {
     try {
       final response = await _apiService.getRequest(ApiConstant.selectCompany);
       print("Select Company token-----${response.data}");
       final selectComapny = SelectCompanyModel.fromJson(response.data);
       if (response.statusCode == 200) {
-        await GetStorageHelper.saveString(
-          GetStorageHelper.companyToken,
-          selectComapny.data?.token,
-        );
-        await GetStorageHelper.saveBoolean(GetStorageHelper.isCustomer, false);
+        await GetStorageData.saveString(
+            GetStorageData.token, selectComapny.data!.token);
         update();
       } else if (selectComapny.statusCode == 401) {
         print("Unauthorized access: Token expired or invalid");
 
         // Clear token and other related data
-        await GetStorageHelper.removeData(GetStorageHelper.token);
-        await GetStorageHelper.saveBoolean(GetStorageHelper.isCustomer, false);
+        await GetStorageData.removeData(GetStorageData.token);
+        await GetStorageData.saveBoolean(GetStorageData.isCustomer, false);
         Get.offAllNamed(AppRoutes.loginScreen);
       } else {
         // Handle other errors
@@ -611,19 +614,20 @@ class LoginController extends GetxController with GetSingleTickerProviderStateMi
       // Utils().showToast(context: Get.context!, title: title, message: message)
     }
   }
+
   void setRole(String role) {
-    GetStorageHelper.saveBoolean(GetStorageHelper.isAdmin, false);
-    GetStorageHelper.saveBoolean(GetStorageHelper.isCustomer, false);
-    GetStorageHelper.saveBoolean(GetStorageHelper.isEmployee, false);
+    GetStorageData.saveBoolean(GetStorageData.isAdmin, false);
+    GetStorageData.saveBoolean(GetStorageData.isCustomer, false);
+    GetStorageData.saveBoolean(GetStorageData.isEmployee, false);
 
     if (role == "Admin") {
-      GetStorageHelper.saveBoolean(GetStorageHelper.isAdmin, true);
+      GetStorageData.saveBoolean(GetStorageData.isAdmin, true);
     } else if (role == "Customer") {
-      GetStorageHelper.saveBoolean(GetStorageHelper.isCustomer, true);
+      GetStorageData.saveBoolean(GetStorageData.isCustomer, true);
     } else if (role == "Employee") {
-      GetStorageHelper.saveBoolean(GetStorageHelper.isEmployee, true);
+      GetStorageData.saveBoolean(GetStorageData.isEmployee, true);
     }
-    GetStorageHelper.saveString(GetStorageHelper.role, role);
+    GetStorageData.saveString(GetStorageData.role, role);
   }
 }
 

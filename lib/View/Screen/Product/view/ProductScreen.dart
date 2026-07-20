@@ -54,7 +54,7 @@ class ProductScreen extends StatelessWidget {
                       color: Colors.white,
                     ),
                     onPressed: () {
-                      Get.offNamed(AppRoutes.addToCartScreen);
+                      Get.toNamed(AppRoutes.addToCartScreen);
                     },
                   ),
 
@@ -148,12 +148,12 @@ class ProductScreen extends StatelessWidget {
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? AppColors.btnColors
+                                  ? AppColors.brandRed
                                   : Colors.white,
                               borderRadius: BorderRadius.circular(25),
                               border: Border.all(
                                 color: isSelected
-                                    ? AppColors.btnColors
+                                    ? AppColors.brandRed
                                     : Colors.black,
                               ),
                             ),
@@ -255,7 +255,7 @@ class ProductScreen extends StatelessWidget {
                                 SizedBox(height: 4),
                                 CommonText(
                                   text: "\$429",
-                                  color: AppColors.btnColors,
+                                  color: AppColors.brandRed,
                                   fontFamily: FontFamily.poppinsBold,
                                   fontSize: 18,
                                 ),

@@ -32,7 +32,7 @@ class Data {
   });
 
   Data.fromJson(Map<String, dynamic> json) {
-    token = json['token'];
+    token = json['token'] is String ? json['token'] as String : null;
   }
 
   Map<String, dynamic> toJson() {

@@ -48,6 +48,16 @@ dependencies:
   dropdown_button2: ^2.3.9
   loading_animation_widget: ^1.3.0
   intl: any
+  html_to_pdf: ^0.7.0
+  permission_handler: ^12.0.1
+  share_plus: ^10.1.3
+  syncfusion_flutter_pdfviewer: ^31.1.18
+  shimmer: ^3.0.0
+  image_picker: ^1.0.4
+  marquee: ^2.3.0
+
+
+
 
 
 dev_dependencies:
@@ -121,6 +131,30 @@ flutter:
     - family: Poppins-SemiBold
       fonts:
         - asset: assets/fonts/Poppins-SemiBold.ttf
+    - family: JetBrainsMono-Bold
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Bold.ttf
+    - family: JetBrainsMono-BoldItalic
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-BoldItalic.ttf
+    - family: JetBrainsMono-ExtraBold
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-ExtraBold.ttf
+    - family: JetBrainsMono-Italic
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Italic.ttf
+    - family: JetBrainsMono-Light
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Light.ttf
+    - family: JetBrainsMono-Medium
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Medium.ttf
+    - family: JetBrainsMono-Regular
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Regular.ttf
+    - family: JetBrainsMono-SemiBold
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-SemiBold.ttf
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package

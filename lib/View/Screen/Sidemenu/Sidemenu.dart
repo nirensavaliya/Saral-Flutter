@@ -8,6 +8,8 @@ import 'package:saral/View/Constant/App_font.dart';
 import 'package:saral/View/Utils/App_Routes.dart';
 import 'package:saral/View/Widget/Common_Text.dart';
 
+import '../../../Common/Global.dart';
+
 // import your controllers, routes, constants and font files
 // import '../Controller/dashboard_controller.dart';
 // import '../Controller/account_controller.dart';
@@ -32,7 +34,7 @@ class SideMenu extends StatelessWidget {
           children: [
            UserAccountsDrawerHeader(
                 decoration: BoxDecoration(
-                  color: AppColors.btnColors,
+                  color: AppColors.brandRed,
                 ),
                 currentAccountPicture: GestureDetector(
                   onTap: () {
@@ -43,24 +45,38 @@ class SideMenu extends StatelessWidget {
                   )
                 ), accountName: null, accountEmail: null,
               ),
+            // ListTile(
+            //   leading: const Icon(Icons.save_alt),
+            //   title: CommonText(text:"Sale Order",fontFamily: FontFamily.poppinsMedium),
+            //   onTap: () {
+            //     Get.back();
+            //     Get.toNamed(AppRoutes.saleOrderScreen);
+            //   },
+            // ),
 
-            ListTile(
-              leading: const Icon(Icons.pedal_bike_sharp),
-              title: CommonText(text:"Track Order",fontFamily: FontFamily.poppinsMedium,),
-              onTap: () {
-                
-              },
-            ),
             ListTile(
               leading: const Icon(Icons.pending),
               title: CommonText(text: "Pending Order",fontFamily: FontFamily.poppinsMedium),
               onTap: () {
-
+                if (!isLoggedIn) {
+                  Global.showLoginRequiredDialog();
+                  return;
+                }
+                Get.back();
+                Get.toNamed(AppRoutes.pendingSaleOrderScreen);
               },
             ),
+            // ListTile(
+            //   leading: const Icon(Icons.pedal_bike_sharp),
+            //   title: CommonText(text:"Track Order",fontFamily: FontFamily.poppinsMedium,),
+            //   onTap: () {
+            //
+            //   },
+            // ),
+
             ListTile(
               leading: const Icon(Icons.shopping_bag),
-              title: CommonText(text:"My Cart",fontFamily: FontFamily.poppinsMedium),
+              title: CommonText(text:"Cart",fontFamily: FontFamily.poppinsMedium),
               onTap: () {
                 Get.back();
                 Get.toNamed(AppRoutes.addToCartScreen);
@@ -74,19 +90,12 @@ class SideMenu extends StatelessWidget {
                 Get.toNamed(AppRoutes.contactUsScreen);
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.save_alt),
-              title: CommonText(text:"Sale Order",fontFamily: FontFamily.poppinsMedium),
-              onTap: () {
-                Get.back();
-                Get.toNamed(AppRoutes.saleOrderScreen);
-              },
-            ),
+
             Divider(),
             ListTile(
               leading: Icon(
                 Icons.logout,
-                color: AppColors.btnColors,
+                color: AppColors.brandRed,
               ),
               title: CommonText(text: "Logout",fontFamily: FontFamily.poppinsMedium,),
                 onTap: () {
@@ -165,7 +174,7 @@ class SideMenu extends StatelessWidget {
                             Expanded(
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.btnColors,
+                                  backgroundColor: AppColors.brandRed,
                                   elevation: 4,
                                   minimumSize: const Size(double.infinity, 52),
                                   shape: RoundedRectangleBorder(
@@ -175,20 +184,26 @@ class SideMenu extends StatelessWidget {
                                 onPressed: () async {
                                   Get.back();
                                   Get.back();
-                                  await GetStorageHelper.removeData(GetStorageHelper.token);
-                                  await GetStorageHelper.removeData(GetStorageHelper.loginToken);
-                                  await GetStorageHelper.removeData(GetStorageHelper.role);
-                                  await GetStorageHelper.removeData(GetStorageHelper.isOtpVerified);
-                                  await GetStorageHelper.saveBoolean(GetStorageHelper.isAdmin, false);
-                                  await GetStorageHelper.saveBoolean(GetStorageHelper.isCustomer, false);
-                                  await GetStorageHelper.saveBoolean(GetStorageHelper.isEmployee, false);
+                                  await GetStorageData.removeData(GetStorageData.token);
+                                  // await GetStorageData.removeData(GetStorageData.loginToken);
+                                  await GetStorageData.removeData(GetStorageData.role);
+                                  await GetStorageData.removeData(GetStorageData.isOtpVerified);
+                                  await GetStorageData.saveBoolean(GetStorageData.isAdmin, false);
+                                  await GetStorageData.saveBoolean(GetStorageData.isCustomer, false);
+                                  await GetStorageData.saveBoolean(GetStorageData.isEmployee, false);
                                   Get.offAllNamed(AppRoutes.loginScreen);
                                 },
-                                child: Text(
-                                  "Yes, Logout",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontFamily: FontFamily.poppinsSemiBold,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    "Yes, Logout",
+                                    maxLines: 1,
+                                    softWrap: false,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontFamily: FontFamily.poppinsSemiBold,
+                                      fontSize: 14,
+                                    ),
                                   ),
                                 ),
                               ),

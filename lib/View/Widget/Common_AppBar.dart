@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:saral/View/Constant/App_Colors.dart';
 import 'package:saral/View/Constant/App_font.dart';
-import 'package:saral/View/Screen/ProductDetail/Controller/ProductDetailController.dart';
-import 'package:saral/View/Utils/App_Routes.dart';
+
+import '../Screen/AddToCart/Controller/AddToCartController.dart';
+import '../Utils/App_Routes.dart';
 
 class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final bool showBackButton;
+  final bool showCartButton;
   final bool showDrawer;
   final bool showCart;
   final bool clearAll;
@@ -15,11 +17,13 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onCartTap;
   final VoidCallback? onClearAll;
   final List<Widget>? actions;
+  final int cartCount;
 
   CommonAppBar({
     super.key,
     required this.title,
     this.showBackButton = true,
+    this.showCartButton = false,
     this.showDrawer = false,
     this.showCart = false,
     this.clearAll = false,
@@ -27,6 +31,7 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onCartTap,
     this.onClearAll,
     this.actions,
+    this.cartCount = 0,
   });
 
 
@@ -38,7 +43,7 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
         children: [
           ClipPath(
             clipper: AppBarCurveClipper(),
-            child: Container(height: 120, color: AppColors.btnColors),
+            child: Container(height: 120, color: AppColors.brandRed),
           ),
 
           SafeArea(
@@ -62,21 +67,94 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
                           ),
                         )
                       else if (showBackButton)
-                        CircleAvatar(
-                          radius: 22,
-                          backgroundColor: Colors.white,
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.arrow_back_ios_new,
-                              size: 18,
-                              color: Colors.black,
-                            ),
-                            onPressed: () {
-                              print("Click.......");
-                              Get.back();
+                         Material(
+                         color: Colors.white.withValues(alpha: 0.18),
+                         shape: const CircleBorder(),
+                         child: InkWell(
+                         customBorder: const CircleBorder(),
+                         onTap: () {
+                            if (onBack != null) {
+                            onBack!();
+                            } else {
+                            Get.back();
+                            }
                             },
-                          ),
-                        ),
+                         child: Padding(
+                         padding: const EdgeInsets.all(15),
+                         child: Center(child: Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 22)),
+                         ),
+                         ),
+                         )
+                        // CircleAvatar(
+                        //   radius: 22,
+                        //   backgroundColor: Colors.white,
+                        //   child: IconButton(
+                        //     icon: const Icon(
+                        //       Icons.arrow_back_ios_new,
+                        //       size: 18,
+                        //       color: Colors.black,
+                        //     ),
+                        //     onPressed: () {
+                        //       if (onBack != null) {
+                        //         onBack!();
+                        //       } else {
+                        //         Get.back();
+                        //       }
+                        //     },
+                        //   ),
+                        // )
+                      else if (showCartButton)
+                          GetBuilder<AddToCartController>(
+                            init: Get.isRegistered<AddToCartController>()
+                            ? null : AddToCartController(),
+                              builder: (AddToCartController controller) {
+                                final count = cartCount > 0 ? cartCount : controller.cartCount;
+                                return Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Material(
+                                      color: Colors.white.withOpacity(0.18),
+                                      shape: const CircleBorder(),
+                                      child: InkWell(
+                                        customBorder: const CircleBorder(),
+                                        onTap: () => Get.toNamed(AppRoutes.addToCartScreen),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(8),
+                                          child: Icon(
+                                            Icons.shopping_cart_outlined,
+                                            color: Colors.white,
+                                            size: 22,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                    if (count > 0)
+                                      Positioned(
+                                        right: -2,
+                                        top: -2,
+                                        child: Container(
+                                          height: 18,
+                                          width: 18,
+                                          decoration: const BoxDecoration(
+                                            color: Colors.white,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            count > 99 ? "99+" : count.toString(),
+                                            style: const TextStyle(
+                                              color: Colors.red,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              },
+                            ),
                       Spacer(),
                       if (actions != null) ...actions!,
                     ],
@@ -87,7 +165,7 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
                       title,
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 22,
+                        fontSize: 18,
                         fontFamily: FontFamily.poppinsBold,
                       ),
                     ),

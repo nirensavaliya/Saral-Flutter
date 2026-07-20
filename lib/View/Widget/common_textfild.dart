@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_gap/flutter_gap.dart';
+import 'package:saral/View/Constant/App_Colors.dart';
 import 'package:saral/View/Constant/App_font.dart';
 
 
@@ -147,7 +148,7 @@ class CommonTextField extends StatelessWidget {
               // enabledBorder: InputBorder.none,
               errorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.red, width: 1.5),
+                borderSide: BorderSide(color: AppColors.brandRed, width: 1.5),
               ),
               // focusedBorder: InputBorder.none,
 

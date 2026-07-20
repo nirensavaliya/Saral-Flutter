@@ -1,70 +1,72 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:saral/View/Constant/App_Colors.dart';
 import 'package:saral/View/Constant/App_String.dart';
 import 'package:saral/View/Constant/App_font.dart';
 import 'package:saral/View/Screen/ContactUs/controller/ContactUsController.dart';
 import 'package:saral/View/Widget/Common_AppBar.dart';
-import 'package:saral/View/Widget/Common_Text.dart';
-import 'package:saral/View/Widget/common_button.dart';
-import 'package:saral/View/Widget/common_textfild.dart';
 
 class Contactus extends StatelessWidget {
-  Contactus({super.key});
+  Contactus({super.key, this.showBackButton = true});
+
+  final bool showBackButton;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: CommonAppBar(title: "Contact Us",showBackButton: true,),
-      body: SingleChildScrollView(
+      backgroundColor: AppColors.brandRed,
+      appBar: CommonAppBar(
+        title: "Contact Us",
+        showBackButton: showBackButton,
+      ),
+      body: Container(
+        height: double.infinity,
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        clipBehavior: Clip.antiAlias,
         child: Container(
-          margin: EdgeInsets.all(15),
-          child: Container(
+            margin: EdgeInsets.all(15),
             padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.shade200,
-                  blurRadius: 12,
-                ),
-              ],
-            ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.shade200,
+                blurRadius: 12,
+              ),
+            ],
+          ),
+          child: SingleChildScrollView(
             child: Column(
               children: [
-
+            
                 buildInfoCard(
                   Icons.call,
                   "Phone Number",
                   "+91 45636 78908",
                 ),
-
                 const SizedBox(height: 15),
-
-                buildInfoCard(
-                  Icons.phone_android,
-                  "Alternate Number",
-                  "+91 98765 43210",
-                ),
-
-                const SizedBox(height: 15),
-
+            
                 buildInfoCard(
                   Icons.email_outlined,
                   "Email Address",
                   "john@gmail.com",
                 ),
-
+            
                 const SizedBox(height: 15),
-
+            
                 buildInfoCard(
                   Icons.location_on_outlined,
                   "Office Address",
                   "101, Shree Complex,\nAhmedabad, Gujarat",
                 ),
-
+            
                 const SizedBox(height: 25),
-
+            
                 // SizedBox(
                 //   width: double.infinity,
                 //   child: ElevatedButton.icon(
@@ -82,8 +84,8 @@ class Contactus extends StatelessWidget {
                 //   ),
                 // ),
               ],
-            )
-          ),
+            ),
+          )
         ),
       ),
     );

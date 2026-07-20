@@ -75,7 +75,7 @@ class FlyToCartAnimator {
             elevation: 10,
             borderRadius: BorderRadius.circular(12),
             clipBehavior: Clip.antiAlias,
-            child: Image.asset(
+            child: Image.network(
               imageUrl,
               width: startSize.width,
               height: startSize.height,

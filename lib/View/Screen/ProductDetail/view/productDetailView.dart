@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'package:saral/Common/Tost.dart';
 import 'package:saral/View/Constant/App_Colors.dart';
 import 'package:saral/View/Constant/App_Images.dart';
 import 'package:saral/View/Constant/App_font.dart';
@@ -31,6 +32,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     // TODO: implement initState
     super.initState();
     widget.itemListModelData = Get.arguments;
+    productDetailController.initQtyOptions(widget.itemListModelData);
 
     print(widget.itemListModelData?.discount);
     print(widget.itemListModelData?.purchaseVATamt);
@@ -46,7 +48,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
         return true;
       },
       child: Scaffold(
-        backgroundColor: const Color(0xffF8F8F8),
+        backgroundColor: AppColors.brandRed,
         appBar: CommonAppBar(
           title: "Product Detail",
           showBackButton: true,
@@ -104,8 +106,15 @@ class _ProductDetailViewState extends State<ProductDetailView> {
           ],
         ),
         body: Container(
-          margin: EdgeInsets.all(10),
+          height: double.infinity,
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          clipBehavior: Clip.antiAlias,
           child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(10, 16, 10, 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -175,6 +184,74 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                       MainAxisAlignment.spaceBetween,
                                   children: [
                                     CommonText(
+                                      text: "Qty",
+                                      fontFamily: FontFamily.poppinsRegular,
+                                      fontSize: 15,
+                                      color: Colors.black,
+                                    ),
+                                    Obx(
+                                      () => Container(
+                                        height: 38,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: AppColors.brandRed,
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        child: DropdownButtonHideUnderline(
+                                          child: DropdownButton<int>(
+                                            dropdownColor: Colors.white,
+                                            value: productDetailController
+                                                    .qtyOptions
+                                                    .contains(
+                                                  productDetailController
+                                                      .quantity.value,
+                                                )
+                                                ? productDetailController
+                                                    .quantity.value
+                                                : null,
+                                            hint: const Text("Select"),
+                                            items: productDetailController
+                                                .qtyOptions
+                                                .map(
+                                                  (q) =>
+                                                      DropdownMenuItem<int>(
+                                                    value: q,
+                                                    child: Text(
+                                                      q.toString(),
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                )
+                                                .toList(),
+                                            onChanged: (value) {
+                                              if (value != null) {
+                                                productDetailController
+                                                    .setQuantity(value);
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    CommonText(
                                       text: "Item Code:",
                                       fontFamily: FontFamily.poppinsRegular,
                                       fontSize: 15,
@@ -214,7 +291,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                           ),
                         ],
                       ),
-                      SizedBox(height: 8),
+                      /*SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -231,7 +308,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                             color: Colors.black,
                           ),
                         ],
-                      ),
+                      ),*/
                       const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -301,7 +378,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Row(
+                      /*Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           CommonText(
@@ -368,7 +445,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                           // ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 8),*/
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -507,7 +584,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Row(
+                      /*Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           CommonText(
@@ -575,8 +652,8 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                           // ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Row(
+                      const SizedBox(height: 8),*/
+                      /*Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           CommonText(
@@ -643,9 +720,9 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                           //   ),
                           // ),
                         ],
-                      ),
+                      ),*/
                       const SizedBox(height: 8),
-                      Row(
+                /*      Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           CommonText(
@@ -733,7 +810,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 8),*/
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -753,8 +830,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      SizedBox(height: 50),
+                      SizedBox(height: 40),
                       Row(
                         children: [
                           Expanded(
@@ -763,22 +839,38 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   elevation: 0,
-                                  backgroundColor: AppColors.btnColors,
+                                  backgroundColor: AppColors.brandRed,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
                                 onPressed: () async {
-                                  // await FlyToCartAnimator.fly(
-                                  //   context: context,
-                                  //   startKey: productDetailController.imageKey,
-                                  //   cartKey: productDetailController.cartKey,
-                                  //   imageUrl: AppImages.Img2,
-                                  //   onComplete: () {
-                                  //     productDetailController.animateCart();
-                                  //   },
-                                  // );
+                                  final item = widget.itemListModelData;
+                                  if (item == null) return;
+
+                                  await productDetailController
+                                      .addProductToCart(item);
+
+                                  await FlyToCartAnimator.fly(
+                                    context: context,
+                                    startKey: productDetailController.imageKey,
+                                    cartKey: productDetailController.cartKey,
+                                    imageUrl: widget.itemListModelData?.itemImage ?? '',
+                                    onComplete: () {
+                                      productDetailController.animateCart();
+                                    },
+                                  );
                                   Get.back();
+                                  final ctx = Get.context;
+                                  if (ctx != null) {
+                                    Utils().showToast(
+                                      context: ctx,
+                                      title: "Success",
+                                      message:
+                                          "Order saved to cart successfully",
+                                      isSuccess: true,
+                                    );
+                                  }
                                 },
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -789,7 +881,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                                     // ),
                                     // SizedBox(width: 10),
                                     CommonText(
-                                      text: "Close",
+                                      text: "Add to cart",
                                       fontFamily: FontFamily.poppinsSemiBold,
                                       color: Colors.white,
                                       fontSize: 16,
@@ -837,7 +929,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
     return Expanded(
       child: Column(
         children: [
-          Icon(icon, size: 28, color: AppColors.btnColors),
+          Icon(icon, size: 28, color: AppColors.brandRed),
 
           const SizedBox(height: 10),
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:saral/View/Constant/App_Colors.dart';
 
 class CommonLoader {
   static const String _defaultAsset = 'assets/lottie/app_loader.json';
@@ -8,13 +9,14 @@ class CommonLoader {
 
   static bool get isShowing => _entry != null;
 
-  static  show(
-      BuildContext context, {
-        double size = 145,
-      }) {
+  static show(
+    BuildContext context, {
+    double size = 145,
+  }) {
     if (_entry != null) return;
 
-    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    final overlay = Overlay.maybeOf(context, rootOverlay: true) ??
+        Navigator.of(context, rootNavigator: true).overlay;
     if (overlay == null) return;
 
     _entry = OverlayEntry(
@@ -39,20 +41,20 @@ class CommonLoader {
                 child: Lottie.asset(
                   _defaultAsset,
                   repeat: true,
-                  fit: BoxFit.cover,
+                  fit: BoxFit.contain,
                   options: LottieOptions(
                     enableMergePaths: true,
                     enableApplyingOpacityToLayers: true,
                   ),
                   frameBuilder: (context, child, composition) {
                     if (composition == null) {
-                      return const Center(
+                      return  Center(
                         child: SizedBox(
-                          width: 20,
-                          height: 20,
+                          width: 28,
+                          height: 28,
                           child: CircularProgressIndicator(
-                            strokeWidth: 3,
-                            color: Color(0xffC8102E),
+                            strokeWidth: 2,
+                            color: AppColors.brandRed,
                           ),
                         ),
                       );
