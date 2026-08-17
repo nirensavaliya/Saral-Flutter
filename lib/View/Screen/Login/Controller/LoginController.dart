@@ -38,6 +38,7 @@ class LoginController extends GetxController with GetSingleTickerProviderStateMi
   late TabController tabController;
   RxBool isListeningForOtp=false.obs;
   String otp = "";
+  String sentOtp = "";
   String otpMsg = "";
   bool isEmployee = true;
   RxBool showOtpScreen = false.obs;
@@ -251,6 +252,17 @@ class LoginController extends GetxController with GetSingleTickerProviderStateMi
       isVerifyOtpLoading.value = true;
       print("VERIFYING OTP: $enteredOtp");
 
+      if (enteredOtp.trim() != sentOtp.trim()) {
+        Utils().showToast(
+          context: Get.context!,
+          title: "Error",
+          message: "Invalid OTP",
+          isSuccess: false,
+        );
+        isVerifyOtpLoading.value = false;
+        return;
+      }
+
       await Future.delayed(const Duration(seconds: 1));
 
       GetStorageData.saveString(GetStorageData.isOtpVerified, "true");
@@ -285,6 +297,7 @@ class LoginController extends GetxController with GetSingleTickerProviderStateMi
     showOtpScreen.value = false;
     otpController.clear();
     otp = "";
+    sentOtp = "";
 
     userNameController.clear();
     pwdController.clear();
@@ -359,7 +372,8 @@ class LoginController extends GetxController with GetSingleTickerProviderStateMi
           isSuccess: true,
         );
         showOtpScreen.value = true;
-        otp = model.data?.otp ?? "";
+        sentOtp = model.data?.otp ?? "";
+        otp = sentOtp;
         otpMsg = model.data?.otpResponse ?? "";
         await startOtpListening();
         update();

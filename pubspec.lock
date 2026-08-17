@@ -316,10 +316,10 @@ packages:
     dependency: "direct main"
     description:
       name: html_to_pdf
-      sha256: "9964b4a2fe5a4467ac5660de6c95de15c39e77bb19d24b5ac81d51c8b1016425"
+      sha256: "6f38c5c6309434f13422a5232e1d31443ac7ea97c916b936ccfaca36f4ef4e07"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.9"
+    version: "0.8.1"
   http:
     dependency: transitive
     description:

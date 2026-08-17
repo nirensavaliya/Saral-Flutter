@@ -67,7 +67,7 @@ class CompanyController extends GetxController {
 
 
   Future<void> apiCallGetCompanyList() async {
-    code = "DE0909";
+    code = "FI3047";
     codeController.forEach((element) {
       if(code!.isEmpty)
       {

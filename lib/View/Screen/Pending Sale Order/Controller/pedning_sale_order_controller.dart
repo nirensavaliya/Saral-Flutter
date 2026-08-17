@@ -12,6 +12,7 @@ import 'package:saral/View/Utils/App_Pages.dart';
 
 import '../../../Utils/App_Routes.dart';
 import '../../Sale Order/Model/quoation_list_model.dart';
+import '../../Sale Order/Model/quotation_pdf_model.dart';
 
 class PendingSaleOrderController extends GetxController {
   RxList<PendingSaleOrder> orderList = <PendingSaleOrder>[].obs;
@@ -73,16 +74,25 @@ class PendingSaleOrderController extends GetxController {
   }
 
   void genaratePDFApi() async {
-    final data = await _apiService.getRequest(
+    final response = await _apiService.getRequest(
       ApiConstant.pendingSalesOrderPDFurl,
       headers: {"Authorization": "Bearer $_token"},
     );
 
-    print('data ---- ${await data}');
-    Get.toNamed(AppRoutes.pdfViewScreen, arguments: {
-      "html": data,
-      "fileName": "Pending_Sales_Order"
-    });
+    final responseData = response.data is String
+        ? jsonDecode(response.data as String)
+        : response.data;
+
+    final model = QuotationModel.fromJson(
+      responseData as Map<String, dynamic>,
+    );
+
+    if (model.statusCode == 200 && model.data?.downloadurl != null) {
+      Get.toNamed(AppRoutes.pdfViewScreen, arguments: {
+        "html": model.data!.downloadurl!,
+        "fileName": "Pending_Sales_Order",
+      });
+    }
   }
 
   Future<void> salesOrderListApi() async {

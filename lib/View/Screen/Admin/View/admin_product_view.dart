@@ -19,16 +19,33 @@ class AdminProductView extends StatefulWidget {
 }
 
 class _AdminProductViewState extends State<AdminProductView> {
-  final HomeController controller = Get.isRegistered<HomeController>()
+  final ScrollController _scrollController = ScrollController();
+  int cartCount = 0;
+
+  HomeController get controller => Get.isRegistered<HomeController>()
       ? Get.find<HomeController>()
       : Get.put(HomeController());
-
-  int cartCount = 0;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _refreshCartCount();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      controller.itemListApi(loadMore: true);
+    }
   }
 
   void _refreshCartCount() {
@@ -298,7 +315,7 @@ class _AdminProductViewState extends State<AdminProductView> {
                 }
 
                 return GridView.builder(
-                  controller: controller.scrollController,
+                  controller: _scrollController,
                   padding: const EdgeInsets.only(bottom: 90),
                   itemCount:
                       data.length + (controller.isLoadingMore.value ? 1 : 0),

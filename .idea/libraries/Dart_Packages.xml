@@ -285,7 +285,7 @@
         <entry key="html_to_pdf">
           <value>
             <list>
-              <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/html_to_pdf-0.7.9/lib" />
+              <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/html_to_pdf-0.8.1/lib" />
             </list>
           </value>
         </entry>
@@ -959,7 +959,7 @@
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/get-4.7.3/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/get_storage-2.1.1/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/hooks-2.0.2/lib" />
-      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/html_to_pdf-0.7.9/lib" />
+      <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/html_to_pdf-0.8.1/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/http-1.6.0/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/http_parser-4.1.2/lib" />
       <root url="file://$USER_HOME$/.pub-cache/hosted/pub.dev/image-4.8.0/lib" />

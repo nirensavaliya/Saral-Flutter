@@ -16,7 +16,7 @@ import '../../Profile/controller/ProfileController.dart';
 
 class Dashboard extends StatelessWidget {
   Dashboard({super.key}) {
-    Get.put(HomeController());
+    Get.put(HomeController(), permanent: true);
     if (GetStorageData.readBoolean(GetStorageData.isCustomer) ||
         !GetStorageData.readBoolean(GetStorageData.isAdmin)) {
       if (Get.isRegistered<PendingSaleOrderController>()) {

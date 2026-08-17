@@ -1,8 +1,6 @@
-
-import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:html_to_pdf/html_to_pdf.dart';
 import 'package:path_provider/path_provider.dart';
@@ -11,33 +9,48 @@ import 'package:permission_handler/permission_handler.dart';
 class PdfViewController extends GetxController {
   String pdfContent = "";
   String fileName = "document";
-
-  // String pdfByte = "";
   String generatedPdfFilePath = '';
   String urlPath = '';
   bool isShow = false;
+  bool isLoading = true;
 
   @override
-  void onInit() async {
+  void onInit() {
     super.onInit();
+    _initPdf();
+  }
+
+  Future<void> _initPdf() async {
     await requestStoragePermission();
-    if (Get.arguments != null) {
-      pdfContent = Get.arguments["html"];
-      fileName = Get.arguments["fileName"] ?? "document";
-      isShow = false;
-      // if (pdfContent.startsWith("http")) {
-      //   isShow = true;
-      //   downloadFile(pdfContent.split("/").last, pdfContent);
-      // } else {
-      if (pdfContent.startsWith("http")) {
-        await downloadFile("$fileName${DateTime.now().millisecondsSinceEpoch}.pdf", pdfContent);
-      } else {
-        pdfContent = pdfContent;
-        await generatePdfFromHtml();
-      }
-      // await generatePdfFromHtml();
-      // }
+
+    final args = Get.arguments;
+    if (args == null) {
+      isLoading = false;
+      update();
+      return;
     }
+
+    pdfContent = (args["html"] as String?)?.trim() ?? "";
+    fileName = args["fileName"] ?? "document";
+    isShow = false;
+    isLoading = true;
+    update();
+
+    if (pdfContent.isEmpty) {
+      _showError("No content received from server");
+      return;
+    }
+
+    if (_isRemoteUrl(pdfContent)) {
+      await downloadFile("$fileName${DateTime.now().millisecondsSinceEpoch}.pdf", pdfContent);
+    } else {
+      await generatePdfFromHtml();
+    }
+  }
+
+  bool _isRemoteUrl(String value) {
+    final trimmed = value.trim().toLowerCase();
+    return trimmed.startsWith("http://") || trimmed.startsWith("https://");
   }
 
   Future<void> requestStoragePermission() async {
@@ -59,32 +72,13 @@ class PdfViewController extends GetxController {
       generatedPdfFilePath = '';
       update();
 
-      Directory? directory;
-
-      if (Platform.isAndroid) {
-        directory = Directory('/storage/emulated/0/Download');
-        if (!await directory.exists()) {
-          directory = await getExternalStorageDirectory();
-        }
-      } else {
-        directory = await getApplicationDocumentsDirectory();
-      }
-
+      final directory = await _getSaveDirectory();
       if (directory == null) throw Exception("Could not find directory");
 
       final filePath = '${directory.path}/$fileName';
-      final file = File(filePath);
-      // final directory = await getExternalStorageDirectory();
-      // final dirPath = directory?.path ?? "/storage/emulated/0/Download";
-      // final filePath = '$dirPath/$fileName';
 
       if (await File(filePath).exists()) {
         await File(filePath).delete();
-
-        // urlPath = filePath;
-        // isShow = true;
-        // update();
-        // return;
       }
 
       final request = await HttpClient().getUrl(Uri.parse(documentUrl));
@@ -96,38 +90,24 @@ class PdfViewController extends GetxController {
         urlPath = file.path;
         generatedPdfFilePath = file.path;
         isShow = true;
-        update();
       } else {
+        _showError("Failed to download PDF");
       }
     } catch (err) {
-      print("Download Error: $err");
+      debugPrint("Download Error: $err");
+      _showError("PDF download failed");
+    } finally {
+      isLoading = false;
+      update();
     }
   }
 
-
   Future<void> generatePdfFromHtml() async {
-
     try {
+      final directory = await _getSaveDirectory();
+      if (directory == null) throw Exception("Could not find directory");
 
-      /// Download folder
-      Directory? directory;
-
-      if (Platform.isAndroid) {
-        directory = Directory("/storage/emulated/0/Download");
-        if (!await directory.exists()) {
-          directory = await getExternalStorageDirectory();
-        }
-      } else {
-        directory = await getApplicationDocumentsDirectory();
-      }
-      // Directory directory = Directory("/storage/emulated/0/Download");
-      //
-      // if(!await directory.exists()){
-      //   directory.create(recursive: true);
-      // }
-
-      final targetPath = directory!.path;
-
+      final targetPath = directory.path;
       final targetFileName = '$fileName${DateTime.now().millisecondsSinceEpoch}';
 
       final generatedPdfFile = await HtmlToPdf.convertFromHtmlContent(
@@ -141,36 +121,40 @@ class PdfViewController extends GetxController {
       );
 
       generatedPdfFilePath = generatedPdfFile.path;
-
-      print("PDF Saved At: $generatedPdfFilePath");
-
+      urlPath = generatedPdfFile.path;
       isShow = true;
-
-      update();
 
       Get.snackbar(
         "Success",
         "PDF Downloaded in Download Folder",
       );
-
     } catch (e) {
-
-      print("PDF Error: $e");
-
-      Get.snackbar(
-        "Error",
-        "PDF generation failed",
-      );
-
+      debugPrint("PDF Error: $e");
+      _showError("PDF generation failed");
+    } finally {
+      isLoading = false;
+      update();
     }
-
   }
 
-
-  String generateFileName() {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    return 'output_$timestamp';
+  Future<Directory?> _getSaveDirectory() async {
+    if (Platform.isAndroid) {
+      final downloadDir = Directory('/storage/emulated/0/Download');
+      if (await downloadDir.exists()) return downloadDir;
+      return getExternalStorageDirectory();
+    }
+    return getApplicationDocumentsDirectory();
   }
 
+  void _showError(String message) {
+    isShow = false;
+    isLoading = false;
+    update();
+    Get.snackbar("Error", message);
+  }
 
+  String get shareFilePath {
+    if (generatedPdfFilePath.isNotEmpty) return generatedPdfFilePath;
+    return urlPath;
+  }
 }

@@ -35,7 +35,7 @@ class HomeController extends GetxController {
   RxBool isLoadingMore = false.obs;
   RxBool hasMoreData = true.obs;
   ScrollController scrollController = ScrollController();
-  bool get _usesPagingApi => selectedCategory.value?.categoryID == null;
+  bool get _usesPagingApi => true;
   // Rx<CategoryBrandData> selectedCategoryBrandData = Rx<CategoryBrandData>(CategoryBrandData());
   var itemList = <ItemListData>[].obs;
   var isItemListLoading = false.obs;
@@ -131,18 +131,13 @@ class HomeController extends GetxController {
   }
 
   void _onScroll() {
-    /*print("pixels = ${scrollController.position.pixels}");
-    print("max = ${scrollController.position.maxScrollExtent}");*/
-
-    if (selectedCategory.value != null) return;
-
     if (!scrollController.hasClients) return;
+    if (!scrollController.positions.any((p) => p.hasContentDimensions)) {
+      return;
+    }
 
     if (scrollController.position.pixels >=
         scrollController.position.maxScrollExtent - 200) {
-
-      print("LOAD MORE CALLED");
-
       itemListApi(loadMore: true);
     }
   }
@@ -278,17 +273,13 @@ class HomeController extends GetxController {
         }
       }
 
-      String url;
-      final bool noCategory = selectedCategory.value?.categoryID == null;
-
-      // if (noCategory) {
-        url =
-        "${ApiConstant.getItemListByBrandAndCategoryPagingPageSize6}?PageNumber=${page.value}&PageSize=$pageSize";
-      // } else {
-      //   url =
-      //   "${ApiConstant.getItemList}?Categoryid=${selectedCategory.value!
-      //       .categoryID}";
-      // }
+      String url =
+          "${ApiConstant.getItemListByBrandAndCategoryPagingPageSize6}"
+          "?PageNumber=${page.value}&PageSize=$pageSize";
+      final categoryId = selectedCategory.value?.categoryID;
+      if (categoryId != null) {
+        url += "&CategoryId=$categoryId";
+      }
 
       final response = await _apiService.getRequest(
         url,
@@ -298,40 +289,29 @@ class HomeController extends GetxController {
         },
       );
 
-      // if (noCategory) {
-        final model = GetItemListModel.fromJson(_normalizePagingResponse(response.data));
-        if (model.statusCode == 200) {
-          final mapped = (model.data ?? []).map((e) {
-            return ItemListData(
-              itemid: e.itemid,
-              itemName: e.itemName,
-              unitCode: e.unitCode,
-              price: e.price,
-              itemImage: e.imageUrl,
-              salesDiscountPER: e.salesDiscountper,
-              orderQtyInterval: e.orderQtyInterval,
-              gstCodeId: e.gstCodeId,
-              gstTaxName: ApiConstant.gstTaxNameForCode(e.gstCodeId),
-            );
-          }).toList();
+      final model = GetItemListModel.fromJson(_normalizePagingResponse(response.data));
+      if (model.statusCode == 200) {
+        final mapped = (model.data ?? []).map((e) {
+          return ItemListData(
+            itemid: e.itemid,
+            itemName: e.itemName,
+            unitCode: e.unitCode,
+            price: e.price,
+            itemImage: e.imageUrl,
+            salesDiscountPER: e.salesDiscountper,
+            orderQtyInterval: e.orderQtyInterval,
+            gstCodeId: e.gstCodeId,
+            gstTaxName: ApiConstant.gstTaxNameForCode(e.gstCodeId),
+          );
+        }).toList();
 
-          if (loadMore) {
-            itemList.addAll(mapped);
-          } else {
-            itemList.value = mapped;
-          }
-          _updateHasMorePages(response.data, mapped.length);
+        if (loadMore) {
+          itemList.addAll(mapped);
+        } else {
+          itemList.value = mapped;
         }
-      // } else {
-      //   GetReportItemListModel model = GetReportItemListModel.fromJson(
-      //       response.data);
-      //   if (model.statusCode == 200) {
-      //     itemList.value = model.data ?? [];
-      //     itemList.sort((a, b) =>
-      //         (a.itemName ?? '').toLowerCase().compareTo(
-      //             (b.itemName ?? '').toLowerCase()));
-      //   }
-      // }
+        _updateHasMorePages(response.data, mapped.length);
+      }
     }
     catch (e) {
       log('ERROR-Something went wrong $e');

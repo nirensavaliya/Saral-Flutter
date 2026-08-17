@@ -5,7 +5,6 @@ import 'package:saral/Common/Tost.dart';
 import 'package:saral/View/Constant/App_Colors.dart';
 import 'package:saral/View/Constant/App_Images.dart';
 import 'package:saral/View/Constant/App_font.dart';
-import 'package:saral/View/Screen/Home/Controller/HomeController.dart';
 import 'package:saral/View/Screen/Home/Model/GetReportItemListModel.dart';
 import 'package:saral/View/Screen/ProductDetail/view/FlyToCartAnimation.dart';
 import 'package:saral/View/Screen/ProductDetail/Controller/ProductDetailController.dart';
@@ -25,7 +24,6 @@ class _ProductDetailViewState extends State<ProductDetailView> {
   ProductDetailController productDetailController = Get.put(
     ProductDetailController(),
   );
-  HomeController homeController = Get.put(HomeController());
 
   @override
   void initState() {

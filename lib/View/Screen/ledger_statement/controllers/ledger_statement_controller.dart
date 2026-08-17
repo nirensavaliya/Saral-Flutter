@@ -10,6 +10,7 @@ import 'package:get/get.dart' hide FormData;
 import 'package:intl/intl.dart';
 import 'package:saral/Data/Constant/api_constant.dart';
 import 'package:saral/View/Utils/App_Routes.dart';
+import '../../../../Common/App_Loader.dart';
 import '../../../../Common/Get_Storage.dart';
 import '../../../../Data/Constant/Api_Service.dart';
 import '../../../Widget/common_textfild.dart';
@@ -224,23 +225,40 @@ class LedgerStatementController extends GetxController {
   }
 
 
-  void genaratePDFApi() async {
-    String url = "Reports/LedgerStatementPDFurl?GLAccountNumber=$ledgerId&FromDate=$fromDateV&ToDate=$todoDateV";
+  Future<void> genaratePDFApi() async {
+    final ctx = Get.overlayContext ?? Get.context;
+    if (ctx != null && ctx.mounted) {
+      CommonLoader.show(ctx);
+    }
 
-    final data = await _apiService.getRequest(
-       url,
-      headers: {"Authorization": "Bearer $_token"},
-    );
-    // var responseData = data is String ? jsonDecode(data) : data;
-    Get.toNamed(AppRoutes.pdfViewScreen,    arguments: {
-      "html": data,
-      "fileName": "Ledger_Statement"
-    },);
-    // QuotationModel model = QuotationModel.fromJson(data);
-    // if (model.statusCode == 200) {
-    //   downloadFile(model.data!.downloadurl!.split("/").last, model.data!.downloadurl);
-    //   update();
-    // }
+    String? htmlContent;
+
+    try {
+      final url =
+          "${ApiConstant.baseurl}/Reports/LedgerStatementPDFurl?GLAccountNumber=$ledgerId&FromDate=$fromDateV&ToDate=$todoDateV";
+
+      final response = await _apiService.getRequest(
+        url,
+        headers: {"Authorization": "Bearer $_token"},
+        responseType: ResponseType.plain,
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final content = response.data.toString().trim();
+        if (content.isNotEmpty) {
+          htmlContent = content;
+        }
+      }
+    } finally {
+      CommonLoader.hide();
+    }
+
+    if (htmlContent != null) {
+      Get.toNamed(AppRoutes.pdfViewScreen, arguments: {
+        "html": htmlContent,
+        "fileName": "Ledger_Statement",
+      });
+    }
   }
 
   downloadFile(var filePath, var documentUrl) async {
