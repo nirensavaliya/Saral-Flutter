@@ -48,7 +48,7 @@ class _AddToCartState extends State<AddToCart> {
             appBar: CommonAppBar(
               title: "Cart",
               showBackButton: true,
-             /* actions: [
+              /* actions: [
                 if (carts.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.only(right: 12),
@@ -78,6 +78,7 @@ class _AddToCartState extends State<AddToCart> {
                     child: SingleChildScrollView(
                       child: AddToCartBottomBar(
                         totals: grandTotals,
+                        gstType: controller.gstTypeController.text,
                         isPlacingOrder: controller.isPlacingOrder,
                         buttonName: "Proceed to Checkout",
                         onPlaceOrder: () =>
@@ -142,6 +143,7 @@ class _AddToCartState extends State<AddToCart> {
                                 child: _CartGroupCard(
                                   cart: cart,
                                   totals: controller.cartTotals(cart),
+                                  gstType: controller.gstTypeController.text,
                                   onRemoveCart: () =>
                                       controller.removeCart(cart.cartId),
                                   onRemoveItem: (itemIndex) =>
@@ -174,6 +176,7 @@ class _CartGroupCard extends StatefulWidget {
   const _CartGroupCard({
     required this.cart,
     required this.totals,
+    required this.gstType,
     required this.onRemoveCart,
     required this.onRemoveItem,
     required this.onUpdateQty,
@@ -181,6 +184,7 @@ class _CartGroupCard extends StatefulWidget {
 
   final SalesOrderCartModel cart;
   final Map<String, String> totals;
+  final String gstType;
   final VoidCallback onRemoveCart;
   final ValueChanged<int> onRemoveItem;
   final void Function(int itemIndex, double newQty) onUpdateQty;
@@ -286,7 +290,10 @@ class _CartGroupCardState extends State<_CartGroupCard> {
             }),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: _CartSummaryCard(totals: totals),
+              child: _CartSummaryCard(
+                totals: totals,
+                gstType: widget.gstType,
+              ),
             ),
           ],
         ],
@@ -481,9 +488,15 @@ class _CartItemCard extends StatelessWidget {
 }
 
 class _CartSummaryCard extends StatelessWidget {
-  const _CartSummaryCard({required this.totals});
+  const _CartSummaryCard({
+    required this.totals,
+    this.gstType = '',
+  });
 
   final Map<String, String> totals;
+  final String gstType;
+
+  bool get _isIgst => gstType.trim().toUpperCase() == 'IGST';
 
   @override
   Widget build(BuildContext context) {
@@ -511,46 +524,43 @@ class _CartSummaryCard extends StatelessWidget {
                   ],
                 ),
               ),
-              SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  children: [
-                    _summaryRow(
-                      'CGSTTotal',
-                      totals['cGstTotal'] ?? '0.00',
-                      muted: true,
-                    ),
-                  ],
+              const SizedBox(width: 8),
+              if (_isIgst)
+                Expanded(
+                  child: Column(
+                    children: [
+                      _summaryRow(
+                        'IGSTTotal',
+                        totals['iGstTotal'] ?? '0.00',
+                        muted: true,
+                      ),
+                    ],
+                  ),
+                )
+              else ...[
+                Expanded(
+                  child: Column(
+                    children: [
+                      _summaryRow(
+                        'CGSTTotal',
+                        totals['cGstTotal'] ?? '0.00',
+                        muted: true,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  children: [
-                    _summaryRow(
-                      'SGSTTotal',
-                      totals['sGstTotal'] ?? '0.00',
-                      muted: true,
-                    ),
-                  ],
+                Expanded(
+                  child: Column(
+                    children: [
+                      _summaryRow(
+                        'SGSTTotal',
+                        totals['sGstTotal'] ?? '0.00',
+                        muted: true,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  children: [
-                    _summaryRow(
-                      'IGSTTotal',
-                      totals['iGstTotal'] ?? '0.00',
-                      muted: true,
-                    ),
-                  ],
-                ),
-              ),
+              ],
             ],
           ),
 

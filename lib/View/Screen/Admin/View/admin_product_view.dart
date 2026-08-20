@@ -4,6 +4,7 @@ import 'package:saral/View/Constant/App_Colors.dart';
 import 'package:saral/View/Constant/App_font.dart';
 import 'package:saral/View/Screen/Home/Controller/HomeController.dart';
 import 'package:saral/View/Screen/Home/Model/categoryListModel.dart';
+import 'package:saral/View/Screen/Sale Order/Model/brand_list_model.dart';
 import 'package:saral/View/Screen/Sale Order/Service/sales_order_cart_service.dart';
 import 'package:saral/View/Screen/Sidemenu/Sidemenu.dart';
 import 'package:saral/View/Utils/App_Routes.dart';
@@ -20,6 +21,7 @@ class AdminProductView extends StatefulWidget {
 
 class _AdminProductViewState extends State<AdminProductView> {
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
   int cartCount = 0;
 
   HomeController get controller => Get.isRegistered<HomeController>()
@@ -31,12 +33,16 @@ class _AdminProductViewState extends State<AdminProductView> {
     super.initState();
     _scrollController.addListener(_onScroll);
     _refreshCartCount();
+    controller.loadCategoryListIfNeeded();
+    controller.loadBrandListIfNeeded();
   }
 
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _searchController.dispose();
+    controller.clearProductSearch();
     super.dispose();
   }
 
@@ -130,146 +136,140 @@ class _AdminProductViewState extends State<AdminProductView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildSearchField(),
+            const SizedBox(height: 10),
             Obx(() {
-              final selected = controller.selectedCategory.value;
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: selected != null
-                      ? Border.all(
-                          color: AppColors.brandRed.withOpacity(0.35),
-                        )
-                      : null,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
+              final selected = controller.selectedBrandData.value;
+              final brands = controller.brandListData;
+              return _filterDropdownCard(
+                selected: selected != null,
+                isLoading: controller.isGetBrand.value && brands.isEmpty,
+                loadingText: 'Loading brands...',
+                child: DropdownButtonFormField<BranddData>(
+                  value: selected,
+                  isExpanded: true,
+                  dropdownColor: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  decoration: InputDecoration(
+                    hintText: "Select Brand",
+                    hintStyle: TextStyle(
+                      fontFamily: FontFamily.poppinsMedium,
+                      color: Colors.grey.shade500,
+                      fontSize: 14,
                     ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<CategoryListData>(
-                        value: selected,
-                        isExpanded: true,
-                        dropdownColor: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        decoration: InputDecoration(
-                          hintText: "Select Category",
-                          hintStyle: TextStyle(
-                            fontFamily: FontFamily.poppinsMedium,
-                            color: Colors.grey.shade500,
-                            fontSize: 14,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 12,
-                          ),
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          prefixIcon: Icon(
-                            Icons.grid_view_rounded,
-                            color: AppColors.brandRed.withOpacity(0.85),
-                            size: 20,
-                          ),
-                        ),
-                        hint: CommonText(
-                          text: "Select Category",
-                          fontFamily: FontFamily.poppinsMedium,
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                        icon: selected != null
-                            ? const SizedBox.shrink()
-                            : const Icon(
-                                Icons.keyboard_arrow_down_rounded,
-                                color: Colors.black54,
-                              ),
-                        items: controller.categoryListData.map((item) {
-                          return DropdownMenuItem<CategoryListData>(
-                            value: item,
-                            child: Row(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(
-                                    item.imageUrl ?? "",
-                                    width: 28,
-                                    height: 28,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Container(
-                                      width: 28,
-                                      height: 28,
-                                      color: const Color(0xffF8F8F8),
-                                      child: const Icon(
-                                        Icons.image_not_supported_outlined,
-                                        size: 16,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    item.categoryName ?? "",
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontFamily: FontFamily.poppinsMedium,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          controller.onCategoryChanged(value);
-                        },
-                      ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
                     ),
-                    if (selected != null)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: Material(
-                          color: AppColors.brandRed.withOpacity(0.1),
-                          shape: const CircleBorder(),
-                          child: InkWell(
-                            customBorder: const CircleBorder(),
-                            onTap: () {
-                              controller.clearCategorySelection();
-                            },
-                            child: const Padding(
-                              padding: EdgeInsets.all(8),
-                              child: Icon(
-                                Icons.close_rounded,
-                                size: 18,
-                                color: AppColors.brandRed,
-                              ),
-                            ),
-                          ),
-                        ),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    prefixIcon: Icon(
+                      Icons.storefront_outlined,
+                      color: AppColors.brandRed.withOpacity(0.85),
+                      size: 20,
+                    ),
+                  ),
+                  hint: CommonText(
+                    text: "Select Brand",
+                    fontFamily: FontFamily.poppinsMedium,
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                  icon: selected != null
+                      ? const SizedBox.shrink()
+                      : const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: Colors.black54,
+                  ),
+                  items: brands.map((item) {
+                    return DropdownMenuItem<BranddData>(
+                      value: item,
+                      child: _dropdownItem(
+                        imageUrl: item.imageUrl,
+                        title: item.brandName ?? "",
                       ),
-                  ],
+                    );
+                  }).toList(),
+                  onChanged: controller.onBrandChanged,
                 ),
+                onClear:
+                selected != null ? controller.clearBrandSelection : null,
               );
             }),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             Obx(() {
               final selected = controller.selectedCategory.value;
+              final categories = controller.categoryListData;
+              return _filterDropdownCard(
+                selected: selected != null,
+                isLoading:
+                    controller.isGetCategory.value && categories.isEmpty,
+                loadingText: 'Loading categories...',
+                child: DropdownButtonFormField<CategoryListData>(
+                  value: selected,
+                  isExpanded: true,
+                  dropdownColor: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  decoration: InputDecoration(
+                    hintText: "Select Category",
+                    hintStyle: TextStyle(
+                      fontFamily: FontFamily.poppinsMedium,
+                      color: Colors.grey.shade500,
+                      fontSize: 14,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    prefixIcon: Icon(
+                      Icons.grid_view_rounded,
+                      color: AppColors.brandRed.withOpacity(0.85),
+                      size: 20,
+                    ),
+                  ),
+                  hint: CommonText(
+                    text: "Select Category",
+                    fontFamily: FontFamily.poppinsMedium,
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                  icon: selected != null
+                      ? const SizedBox.shrink()
+                      : const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: Colors.black54,
+                        ),
+                  items: categories.map((item) {
+                    return DropdownMenuItem<CategoryListData>(
+                      value: item,
+                      child: _dropdownItem(
+                        imageUrl: item.imageUrl,
+                        title: item.categoryName ?? "",
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: controller.onCategoryChanged,
+                ),
+                onClear: selected != null
+                    ? controller.clearCategorySelection
+                    : null,
+              );
+            }),
+
+            const SizedBox(height: 14),
+            Obx(() {
+              final category = controller.selectedCategory.value;
+              final brand = controller.selectedBrandData.value;
+              final title = _productsTitle(category, brand);
               return Row(
                 children: [
                   Expanded(
                     child: CommonText(
-                      text: selected == null
-                          ? "Products"
-                          : (selected.categoryName ?? "Products"),
+                      text: title,
                       fontFamily: FontFamily.poppinsSemiBold,
                       fontSize: 16,
                       color: Colors.black87,
@@ -278,7 +278,7 @@ class _AdminProductViewState extends State<AdminProductView> {
                   CommonText(
                     text: controller.isItemListLoading.value
                         ? ""
-                        : "${controller.itemList.length} items",
+                        : "${controller.displayedProductItems.length} items",
                     fontFamily: FontFamily.poppinsMedium,
                     fontSize: 12,
                     color: Colors.grey,
@@ -292,20 +292,26 @@ class _AdminProductViewState extends State<AdminProductView> {
                 if (controller.isItemListLoading.value) {
                   return _productGridShimmer();
                 }
-                final data = controller.itemList;
+                final data = controller.displayedProductItems;
+                final isSearching =
+                    controller.productSearchQuery.value.trim().isNotEmpty;
                 if (data.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.inventory_2_outlined,
+                          isSearching
+                              ? Icons.search_off_outlined
+                              : Icons.inventory_2_outlined,
                           size: 48,
                           color: Colors.grey.shade400,
                         ),
                         const SizedBox(height: 10),
                         CommonText(
-                          text: "No Product Found",
+                          text: isSearching
+                              ? "No matching product found"
+                              : "No Product Found",
                           fontFamily: FontFamily.poppinsSemiBold,
                           color: Colors.grey,
                         ),
@@ -317,8 +323,10 @@ class _AdminProductViewState extends State<AdminProductView> {
                 return GridView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.only(bottom: 90),
-                  itemCount:
-                      data.length + (controller.isLoadingMore.value ? 1 : 0),
+                  itemCount: data.length +
+                      (!isSearching && controller.isLoadingMore.value
+                          ? 1
+                          : 0),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     crossAxisSpacing: 12,
@@ -477,6 +485,184 @@ class _AdminProductViewState extends State<AdminProductView> {
           ],
         ),
       ),
+    );
+  }
+
+  String _productsTitle(CategoryListData? category, BranddData? brand) {
+    if (category != null && brand != null) {
+      return "${category.categoryName} • ${brand.brandName}";
+    }
+    if (category != null) return category.categoryName ?? "Products";
+    if (brand != null) return brand.brandName ?? "Products";
+    return "Products";
+  }
+
+  Widget _buildSearchField() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        onChanged: controller.onProductSearch,
+        style: TextStyle(
+          fontFamily: FontFamily.poppinsMedium,
+          fontSize: 14,
+          color: Colors.black87,
+        ),
+        decoration: InputDecoration(
+          hintText: "Search product...",
+          hintStyle: TextStyle(
+            color: Colors.grey.shade500,
+            fontFamily: FontFamily.poppinsRegular,
+            fontSize: 14,
+          ),
+          prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
+          suffixIcon: Obx(() {
+            if (controller.productSearchQuery.value.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            return IconButton(
+              icon: Icon(Icons.close, color: Colors.grey.shade500, size: 20),
+              onPressed: () {
+                _searchController.clear();
+                controller.clearProductSearch();
+              },
+            );
+          }),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _filterDropdownCard({
+    required bool selected,
+    required bool isLoading,
+    required String loadingText,
+    required Widget child,
+    VoidCallback? onClear,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: selected
+            ? Border.all(color: AppColors.brandRed.withOpacity(0.35))
+            : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: isLoading
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 14,
+                    ),
+                    child: Row(
+                      children: [
+                        const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.brandRed,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          loadingText,
+                          style: TextStyle(
+                            fontFamily: FontFamily.poppinsMedium,
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : child,
+          ),
+          if (onClear != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Material(
+                color: AppColors.brandRed.withOpacity(0.1),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: onClear,
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 18,
+                      color: AppColors.brandRed,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dropdownItem({required String? imageUrl, required String title}) {
+    return Row(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            imageUrl ?? "",
+            width: 28,
+            height: 28,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              width: 28,
+              height: 28,
+              color: const Color(0xffF8F8F8),
+              child: const Icon(
+                Icons.image_not_supported_outlined,
+                size: 16,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: FontFamily.poppinsMedium,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -8,6 +8,7 @@ import 'package:saral/View/Constant/App_font.dart';
 import 'package:saral/View/Screen/Home/Controller/HomeController.dart';
 import 'package:saral/View/Screen/Home/Model/GetReportItemListModel.dart';
 import 'package:saral/View/Screen/Home/Model/categoryListModel.dart';
+import 'package:saral/View/Screen/Sale Order/Model/brand_list_model.dart';
 import 'package:saral/View/Utils/App_Routes.dart';
 import 'package:saral/View/Widget/Common_Text.dart';
 import 'package:shimmer/shimmer.dart';
@@ -151,9 +152,7 @@ class HomeView extends GetView<HomeController> {
                   ),
                 ),
                 Obx(() {
-                  final hasCategory = controller.selectedCategory.value != null;
-                  final showAll = controller.showAllCategories.value;
-                  if (hasCategory || showAll) {
+                  if (controller.hideHomeBanner) {
                     return const SizedBox(height: 8);
                   }
                   return Padding(
@@ -248,103 +247,30 @@ class HomeView extends GetView<HomeController> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _catalogTopHeader(controller),
             Obx(() {
               final hasCategory = controller.selectedCategory.value != null;
               final showAll = controller.showAllCategories.value;
-              if (hasCategory || showAll) return const SizedBox.shrink();
-              return _categoriesSection(controller);
-            }),
-            Obx(() {
-              final hasCategory = controller.selectedCategory.value != null;
-              final showAll = controller.showAllCategories.value;
-              return SizedBox(height: (hasCategory || showAll) ? 0 : 12);
-            }),
-            Obx(() {
-              if (controller.showAllCategories.value &&
-                  controller.selectedCategory.value == null) {
-                return Row(
-                  children: [
-                    Material(
-                      color: AppColors.brandRed.withValues(alpha: 0.1),
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: () => controller.closeAllCategories(),
-                        child: const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Icon(
-                            Icons.arrow_back_rounded,
-                            size: 20,
-                            color: AppColors.brandRed,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: CommonText(
-                        text: "Categories",
-                        fontFamily: FontFamily.poppinsBold,
-                        fontSize: 18,
-                        color: AppColors.black,
-                      ),
-                    ),
-                    CommonText(
-                      text: "${controller.categoryListData.length} items",
-                      fontFamily: FontFamily.poppinsMedium,
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ],
-                );
+              if (hasCategory || showAll || controller.showProductSearchField.value) {
+                return const SizedBox.shrink();
               }
-
-              final selected = controller.selectedCategory.value;
-              return Row(
-                children: [
-                  if (selected != null) ...[
-                    Material(
-                      color: AppColors.brandRed.withValues(alpha: 0.1),
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: () => controller.clearCategorySelection(),
-                        child: const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Icon(
-                            Icons.arrow_back_rounded,
-                            size: 20,
-                            color: AppColors.brandRed,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                  ],
-                  Expanded(
-                    child: CommonText(
-                      text: selected == null
-                          ? "Premium Products"
-                          : (selected.categoryName ?? "Products"),
-                      fontFamily: FontFamily.poppinsBold,
-                      fontSize: 18,
-                      color: AppColors.black,
-                    ),
-                  ),
-                  if (selected != null)
-                    CommonText(
-                      text: controller.isItemListLoading.value
-                          ? ""
-                          : "${controller.itemList.length} items",
-                      fontFamily: FontFamily.poppinsMedium,
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                ],
+              return Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: _categoriesSection(controller),
               );
             }),
+            const SizedBox(height: 12),
             Expanded(
-              child: Obx(() {
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  if (notification.metrics.axis == Axis.vertical &&
+                      notification is ScrollUpdateNotification &&
+                      (notification.scrollDelta ?? 0) > 1) {
+                    controller.expandCatalog();
+                  }
+                  return false;
+                },
+                child: Obx(() {
                 if (controller.showAllCategories.value &&
                     controller.selectedCategory.value == null) {
                   return _allCategoriesGrid(controller);
@@ -352,20 +278,26 @@ class HomeView extends GetView<HomeController> {
                 if (controller.isItemListLoading.value) {
                   return _productGridShimmer();
                 }
-                final data = controller.itemList;
+                final data = controller.displayedProductItems;
+                final isSearching =
+                    controller.productSearchQuery.value.trim().isNotEmpty;
                 if (data.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.inventory_2_outlined,
+                          isSearching
+                              ? Icons.search_off_outlined
+                              : Icons.inventory_2_outlined,
                           size: 48,
                           color: Colors.grey.shade400,
                         ),
                         const SizedBox(height: 10),
                         CommonText(
-                          text: "No Product Found",
+                          text: isSearching
+                              ? "No matching product found"
+                              : "No Product Found",
                           fontFamily: FontFamily.poppinsSemiBold,
                           color: Colors.grey,
                         ),
@@ -376,6 +308,7 @@ class HomeView extends GetView<HomeController> {
 
                 return GridView.builder(
                   controller: controller.scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
                   itemCount:
                       data.length + (controller.isLoadingMore.value ? 1 : 0),
                   gridDelegate:
@@ -391,10 +324,409 @@ class HomeView extends GetView<HomeController> {
                   },
                 );
               }),
+              ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _catalogTopHeader(HomeController controller) {
+    return Obx(() {
+      final selected = controller.selectedCategory.value;
+      final brand = controller.selectedBrandData.value;
+      final showAll = controller.showAllCategories.value;
+      final searching = controller.showProductSearchField.value;
+      final expanded = controller.isCatalogFullScreen.value;
+      final showBack = selected != null || showAll || expanded || searching;
+
+      final title = selected == null && brand == null
+          ? (showAll ? "Categories" : "Categories")
+          : [
+              if (selected != null) selected.categoryName ?? "Products",
+              if (brand != null) brand.brandName,
+            ].whereType<String>().join(" • ");
+
+      return Row(
+        children: [
+          if (showBack) ...[
+            Material(
+              color: AppColors.brandRed.withValues(alpha: 0.1),
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => _onCatalogBack(controller),
+                child: const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Icon(
+                    Icons.arrow_back_rounded,
+                    size: 20,
+                    color: AppColors.brandRed,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
+          if (searching)
+            Expanded(child: _homeSearchField(controller))
+          else
+            Expanded(
+              child: CommonText(
+                text: title,
+                fontFamily: FontFamily.poppinsBold,
+                fontSize: 18,
+                color: AppColors.black,
+              ),
+            ),
+          const SizedBox(width: 8),
+          _homeHeaderIcons(controller),
+          if (!searching && selected == null && !showAll) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () => controller.openAllCategories(),
+              child: CommonText(
+                text: "VIEW ALL",
+                fontFamily: FontFamily.jetBrainMedium,
+                fontSize: 13,
+                color: AppColors.brandRed,
+              ),
+            ),
+          ],
+        ],
+      );
+    });
+  }
+
+  void _onCatalogBack(HomeController controller) {
+    if (controller.showProductSearchField.value) {
+      controller.closeProductSearchField();
+      return;
+    }
+    if (controller.selectedCategory.value != null) {
+      controller.clearCategorySelection();
+      return;
+    }
+    if (controller.showAllCategories.value) {
+      controller.closeAllCategories();
+      return;
+    }
+    controller.collapseCatalog();
+  }
+
+  Widget _homeFilterIcon(HomeController controller) {
+    return Obx(() {
+      final isOpen = controller.showProductSearchField.value;
+      final hasQuery = controller.productSearchQuery.value.trim().isNotEmpty;
+      return Material(
+        color: (isOpen || hasQuery)
+            ? AppColors.brandRed.withValues(alpha: 0.12)
+            : const Color(0xffF8F8F8),
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: controller.toggleProductSearchField,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(
+              isOpen ? Icons.close_rounded : Icons.search_rounded,
+              size: 20,
+              color: (isOpen || hasQuery) ? AppColors.brandRed : Colors.black54,
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _homeBrandIcon(HomeController controller) {
+    return Obx(() {
+      final isActive = controller.selectedBrandData.value != null;
+      return Material(
+        color: isActive
+            ? AppColors.brandRed.withValues(alpha: 0.12)
+            : const Color(0xffF8F8F8),
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => _showHomeBrandSheet(controller),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(
+              Icons.storefront_outlined,
+              size: 20,
+              color: isActive ? AppColors.brandRed : Colors.black54,
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _homeHeaderIcons(HomeController controller) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _homeFilterIcon(controller),
+        const SizedBox(width: 6),
+        _homeBrandIcon(controller),
+      ],
+    );
+  }
+
+  void _showHomeBrandSheet(HomeController controller) {
+    Get.bottomSheet(
+      Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(Get.context!).viewInsets.bottom,
+        ),
+        child: SafeArea(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                CommonText(
+                  text: "Select Brand",
+                  fontFamily: FontFamily.poppinsBold,
+                  fontSize: 16,
+                  color: AppColors.black,
+                ),
+                const SizedBox(height: 14),
+                _homeBrandDropdown(controller),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+    );
+  }
+
+  Widget _homeSearchField(HomeController controller) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xffF8F8F8),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: TextField(
+        controller: controller.productSearchController,
+        focusNode: controller.productSearchFocusNode,
+        onChanged: controller.onProductSearch,
+        style: TextStyle(
+          fontFamily: FontFamily.poppinsMedium,
+          fontSize: 14,
+          color: Colors.black87,
+        ),
+        decoration: InputDecoration(
+          hintText: "Search product...",
+          hintStyle: TextStyle(
+            color: Colors.grey.shade500,
+            fontFamily: FontFamily.poppinsRegular,
+            fontSize: 14,
+          ),
+          isDense: true,
+          prefixIcon: Icon(Icons.search, color: Colors.grey.shade500, size: 20),
+          suffixIcon: Obx(() {
+            if (controller.productSearchQuery.value.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            return IconButton(
+              icon: Icon(Icons.close, color: Colors.grey.shade500, size: 20),
+              onPressed: controller.clearProductSearch,
+            );
+          }),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _homeBrandDropdown(HomeController controller) {
+    return Obx(() {
+      final selected = controller.selectedBrandData.value;
+      final brands = controller.brandListData;
+      final isLoading = controller.isGetBrand.value && brands.isEmpty;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xffF8F8F8),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected != null
+                ? AppColors.brandRed.withValues(alpha: 0.35)
+                : Colors.grey.shade200,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: isLoading
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 14,
+                      ),
+                      child: Row(
+                        children: [
+                          const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.brandRed,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            "Loading brands...",
+                            style: TextStyle(
+                              fontFamily: FontFamily.poppinsMedium,
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : DropdownButtonFormField<BranddData>(
+                      value: selected,
+                      isExpanded: true,
+                      dropdownColor: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      decoration: InputDecoration(
+                        hintText: "Select Brand",
+                        hintStyle: TextStyle(
+                          fontFamily: FontFamily.poppinsMedium,
+                          color: Colors.grey.shade500,
+                          fontSize: 14,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        prefixIcon: Icon(
+                          Icons.storefront_outlined,
+                          color: AppColors.brandRed.withValues(alpha: 0.85),
+                          size: 20,
+                        ),
+                      ),
+                      hint: CommonText(
+                        text: "Select Brand",
+                        fontFamily: FontFamily.poppinsMedium,
+                        fontSize: 14,
+                        color: Colors.grey,
+                      ),
+                      icon: selected != null
+                          ? const SizedBox.shrink()
+                          : const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: Colors.black54,
+                            ),
+                      items: brands.map((item) {
+                        return DropdownMenuItem<BranddData>(
+                          value: item,
+                          child: _homeDropdownItem(
+                            imageUrl: item.imageUrl,
+                            title: item.brandName ?? "",
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        controller.onBrandChanged(value);
+                        Get.back();
+                      },
+                    ),
+            ),
+            if (selected != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Material(
+                  color: AppColors.brandRed.withValues(alpha: 0.1),
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () {
+                      controller.clearBrandSelection();
+                      Get.back();
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: AppColors.brandRed,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _homeDropdownItem({required String? imageUrl, required String title}) {
+    return Row(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            imageUrl ?? "",
+            width: 28,
+            height: 28,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              width: 28,
+              height: 28,
+              color: Colors.white,
+              child: const Icon(
+                Icons.image_not_supported_outlined,
+                size: 16,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: FontFamily.poppinsMedium,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -430,32 +762,7 @@ class HomeView extends GetView<HomeController> {
   }
 
   Widget _categoriesSection(HomeController controller) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: CommonText(
-                text: "Categories",
-                fontFamily: FontFamily.poppinsBold,
-                fontSize: 18,
-                color: AppColors.black,
-              ),
-            ),
-            GestureDetector(
-              onTap: () => controller.openAllCategories(),
-              child: CommonText(
-                text: "VIEW ALL",
-                fontFamily: FontFamily.jetBrainMedium,
-                fontSize: 13,
-                color: AppColors.brandRed,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        Obx(() {
+    return Obx(() {
           if (controller.isGetCategory.value &&
               controller.categoryListData.isEmpty) {
             return SizedBox(
@@ -504,9 +811,7 @@ class HomeView extends GetView<HomeController> {
               },
             ),
           );
-        }),
-      ],
-    );
+    });
   }
 
   Widget _categoryChip({

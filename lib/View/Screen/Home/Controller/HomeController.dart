@@ -12,6 +12,7 @@ import 'package:saral/View/Constant/App_font.dart';
 import 'package:saral/View/Screen/Home/Model/GetItemListModel.dart';
 import 'package:saral/View/Screen/Home/Model/GetReportItemListModel.dart';
 import 'package:saral/View/Screen/Home/Model/categoryListModel.dart';
+import 'package:saral/View/Screen/Sale Order/Model/brand_list_model.dart';
 import 'package:saral/View/Screen/Sale Order/Model/get_gst_model.dart';
 
 import '../../../../Common/Global.dart';
@@ -23,8 +24,11 @@ class HomeController extends GetxController {
   RxInt selectedBrand = 0.obs;
   RxInt activeIndex = 0.obs;
   RxList<CategoryListData> categoryListData = <CategoryListData>[].obs;
+  RxList<BranddData> brandListData = <BranddData>[].obs;
   Rx<CategoryListData?> selectedCategory = Rx<CategoryListData?>(null);
+  Rx<BranddData?> selectedBrandData = Rx<BranddData?>(null);
   RxBool isGetCategory = false.obs;
+  RxBool isGetBrand = false.obs;
   /// VIEW ALL → full-screen categories grid
   RxBool showAllCategories = false.obs;
   final ApiService _apiService = ApiService();
@@ -39,6 +43,62 @@ class HomeController extends GetxController {
   // Rx<CategoryBrandData> selectedCategoryBrandData = Rx<CategoryBrandData>(CategoryBrandData());
   var itemList = <ItemListData>[].obs;
   var isItemListLoading = false.obs;
+  final productSearchQuery = ''.obs;
+  final TextEditingController productSearchController = TextEditingController();
+  final FocusNode productSearchFocusNode = FocusNode();
+  final showProductSearchField = false.obs;
+  final isCatalogFullScreen = false.obs;
+
+  bool get hideHomeBanner =>
+      isCatalogFullScreen.value ||
+      selectedCategory.value != null ||
+      showAllCategories.value ||
+      showProductSearchField.value;
+
+  void expandCatalog() {
+    if (!isCatalogFullScreen.value) {
+      isCatalogFullScreen.value = true;
+    }
+  }
+
+  void collapseCatalog() {
+    isCatalogFullScreen.value = false;
+    closeProductSearchField();
+  }
+
+  List<ItemListData> get displayedProductItems {
+    final q = productSearchQuery.value.trim().toLowerCase();
+    if (q.isEmpty) return itemList.toList();
+    return itemList
+        .where((e) => (e.itemName ?? '').toLowerCase().contains(q))
+        .toList();
+  }
+
+  void onProductSearch(String value) {
+    productSearchQuery.value = value;
+  }
+
+  void clearProductSearch() {
+    productSearchController.clear();
+    productSearchQuery.value = '';
+  }
+
+  void toggleProductSearchField() {
+    if (!showProductSearchField.value) {
+      expandCatalog();
+      showProductSearchField.value = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!isClosed) productSearchFocusNode.requestFocus();
+      });
+      return;
+    }
+    closeProductSearchField();
+  }
+
+  void closeProductSearchField() {
+    showProductSearchField.value = false;
+    productSearchFocusNode.unfocus();
+  }
 
   final List<String> sliderImages = [
     AppImages.Img1,
@@ -97,6 +157,7 @@ class HomeController extends GetxController {
     await loadGstTaxList();
     apiOfferImageMessage();
     getCategoryList();
+    loadBrandListIfNeeded();
     itemListApi();
   }
 
@@ -127,6 +188,8 @@ class HomeController extends GetxController {
   void onClose() {
     scrollController.removeListener(_onScroll);
     scrollController.dispose();
+    productSearchController.dispose();
+    productSearchFocusNode.dispose();
     super.onClose();
   }
 
@@ -136,10 +199,101 @@ class HomeController extends GetxController {
       return;
     }
 
+    if (scrollController.position.pixels > 8) {
+      expandCatalog();
+    }
+
     if (scrollController.position.pixels >=
         scrollController.position.maxScrollExtent - 200) {
       itemListApi(loadMore: true);
     }
+  }
+
+  Future<void> getBrandList() async {
+    if (isGetBrand.value) return;
+    try {
+      isGetBrand.value = true;
+      final token = GetStorageData.readString(GetStorageData.token);
+      final response = await _apiService.getRequest(
+        ApiConstant.getBrandList,
+        headers: {"Authorization": "Bearer $token"},
+      );
+      if (response.statusCode == 200) {
+        final model = GetBranddListModel.fromJson(response.data);
+        brandListData.value = model.data ?? [];
+        ApiConstant.brandList = model.data ?? [];
+      }
+    } catch (e) {
+      log('getBrandList error: $e');
+    } finally {
+      isGetBrand.value = false;
+    }
+  }
+
+  Future<void> loadBrandListIfNeeded() async {
+    if (brandListData.isNotEmpty) return;
+    await getBrandList();
+  }
+
+  Future<void> loadCategoryListIfNeeded() async {
+    if (categoryListData.isNotEmpty || isGetCategory.value) return;
+    try {
+      isGetCategory.value = true;
+      final token = GetStorageData.readString(GetStorageData.token);
+      final response = await _apiService.getRequest(
+        ApiConstant.getCategoryList,
+        headers: {"Authorization": "Bearer $token"},
+      );
+      if (response.statusCode == 200) {
+        final getCategory = CategoryListModel.fromJson(response.data);
+        categoryListData.value = getCategory.data ?? [];
+      }
+    } catch (e) {
+      log('loadCategoryListIfNeeded error: $e');
+    } finally {
+      isGetCategory.value = false;
+    }
+  }
+
+  Future<void> getBrandListByCategoryApi(int categoryId) async {
+    try {
+      isGetBrand.value = true;
+      final token = GetStorageData.readString(GetStorageData.token);
+      final response = await _apiService.getRequest(
+        '${ApiConstant.getBrandList}?CategoryId=$categoryId',
+        headers: {"Authorization": "Bearer $token"},
+      );
+      if (response.statusCode == 200) {
+        final model = GetBranddListModel.fromJson(response.data);
+        brandListData.value = model.data ?? [];
+      }
+    } catch (e) {
+      log('getBrandListByCategoryApi error: $e');
+    } finally {
+      isGetBrand.value = false;
+    }
+  }
+
+  void onBrandChanged(BranddData? value) async {
+    if (value == null) return;
+
+    selectedBrandData.value = value;
+
+    page.value = 1;
+    hasMoreData.value = true;
+    isLoadingMore.value = false;
+    itemList.clear();
+
+    await itemListApi();
+  }
+
+  Future<void> clearBrandSelection() async {
+    selectedBrandData.value = null;
+    page.value = 1;
+    hasMoreData.value = true;
+    isLoadingMore.value = false;
+    itemList.clear();
+    await itemListApi();
   }
 
   Future<void> getCategoryList() async {
@@ -175,11 +329,16 @@ class HomeController extends GetxController {
 
     showAllCategories.value = false;
     selectedCategory.value = value;
+    selectedBrandData.value = null;
 
     page.value = 1;
     hasMoreData.value = true;
     isLoadingMore.value = false;
     itemList.clear();
+
+    if (value.categoryID != null) {
+      await getBrandListByCategoryApi(value.categoryID!);
+    }
 
     await itemListApi();
   }
@@ -195,11 +354,13 @@ class HomeController extends GetxController {
 
   Future<void> clearCategorySelection() async {
     selectedCategory.value = null;
+    selectedBrandData.value = null;
     showAllCategories.value = false;
     page.value = 1;
     hasMoreData.value = true;
     isLoadingMore.value = false;
     itemList.clear();
+    await getBrandList();
     await itemListApi();
   }
 
@@ -279,6 +440,10 @@ class HomeController extends GetxController {
       final categoryId = selectedCategory.value?.categoryID;
       if (categoryId != null) {
         url += "&CategoryId=$categoryId";
+      }
+      final brandId = selectedBrandData.value?.brandID;
+      if (brandId != null) {
+        url += "&BrandId=$brandId";
       }
 
       final response = await _apiService.getRequest(

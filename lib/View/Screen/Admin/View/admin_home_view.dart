@@ -291,7 +291,7 @@ class AdminHomeView extends StatelessWidget {
               const SizedBox(height: 10),
               _actionTile(
                 icon: Icons.pending_actions_outlined,
-                title: "Order",
+                title: "Today Sale Order",
                 subtitle: "Review customer orders",
                 onTap: () => Get.toNamed(AppRoutes.pendingSaleOrderScreen),
               ),
@@ -305,7 +305,7 @@ class AdminHomeView extends StatelessWidget {
                 builder: (HomeController controller) {
                   return _actionTile(
                     icon: Icons.image_outlined,
-                    title: "Change offer image",
+                    title: "Change Home Banner",
                     subtitle: "View current promotional banner",
                     onTap: () async {
                       final result = await Get.toNamed(AppRoutes.offerImageScreen);

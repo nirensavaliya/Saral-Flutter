@@ -21,7 +21,7 @@ class OfferImageView extends GetView<OfferImageController> {
           resizeToAvoidBottomInset: true,
           backgroundColor: AppColors.brandRed,
           appBar: CommonAppBar(
-            title: "Offer Image",
+            title: "Home Banner",
             showBackButton: true,
           ),
           body: Container(

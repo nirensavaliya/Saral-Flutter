@@ -8,15 +8,19 @@ class AddToCartBottomBar extends StatelessWidget {
   const AddToCartBottomBar({
     super.key,
     required this.totals,
+    this.gstType = '',
     this.onPlaceOrder,
     this.isPlacingOrder = false,
     this.buttonName = "Place Order",
   });
 
   final Map<String, String> totals;
+  final String gstType;
   final VoidCallback? onPlaceOrder;
   final bool isPlacingOrder;
   final String buttonName;
+
+  bool get _isIgst => gstType.trim().toUpperCase() == 'IGST';
 
   @override
   Widget build(BuildContext context) {
@@ -60,50 +64,45 @@ class AddToCartBottomBar extends StatelessWidget {
                     ],
                   ),
                 ),
-                SizedBox(width: 15,),
-                Expanded(
-                  child: Column(
-                    children: [
-                      _summaryRow(
-                        "CGST",
-                        totals['cGstTotal'] ?? '0.00',
-                        muted: true,
-                      ),
-                    ],
+                const SizedBox(width: 15),
+                if (_isIgst)
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _summaryRow(
+                          "IGST",
+                          totals['iGstTotal'] ?? '0.00',
+                          muted: true,
+                        ),
+                      ],
+                    ),
+                  )
+                else ...[
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _summaryRow(
+                          "CGST",
+                          totals['cGstTotal'] ?? '0.00',
+                          muted: true,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _summaryRow(
+                          "SGST",
+                          totals['sGstTotal'] ?? '0.00',
+                          muted: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    children: [
-                      _summaryRow(
-                        "SGST",
-                        totals['sGstTotal'] ?? '0.00',
-                        muted: true,
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(width: 15,),
-                Expanded(
-                  child: Column(
-                    children: [
-                      _summaryRow(
-                        "IGST",
-                        totals['iGstTotal'] ?? '0.00',
-                        muted: true,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
             _summaryRow(
               "TotalItem",
               totals['totalItem'] ?? '0',

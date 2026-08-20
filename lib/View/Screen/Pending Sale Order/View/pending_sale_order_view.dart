@@ -25,7 +25,7 @@ class PendingSaleOrderView extends GetView<PendingSaleOrderController> {
         return Scaffold(
           backgroundColor: AppColors.brandRed,
           appBar: CommonAppBar(
-            title: "Orders",
+            title: "Today Sale Orders",
             showBackButton: Navigator.canPop(context),
           ),
           // floatingActionButton: FloatingActionButton(

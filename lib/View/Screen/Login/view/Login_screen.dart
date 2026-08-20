@@ -358,7 +358,7 @@ class LoginScreen extends StatelessWidget {
                       const SizedBox(height: 18),
                       CommonText(
                         text:
-                            'Enter the 5-digit code we sent to\nyour registered mobile number',
+                            'Enter the 6-digit code we sent to\nyour registered mobile number',
                         fontFamily: FontFamily.poppinsRegular,
                         fontSize: 14,
                         color: Colors.grey.shade600,
@@ -379,7 +379,7 @@ class LoginScreen extends StatelessWidget {
                       const SizedBox(height: 12),
                       Pinput(
                         controller: loginController.otpController,
-                        length: 5,
+                        length: 6,
                         keyboardType: TextInputType.number,
                         separatorBuilder: (index) => const SizedBox(width: 10),
                         onChanged: (value) => loginController.otp = value,
@@ -450,7 +450,7 @@ class LoginScreen extends StatelessWidget {
                         onTap: () {
                           final otp =
                               loginController.otpController.text.trim();
-                          if (otp.isEmpty || otp.length < 5) {
+                          if (otp.isEmpty || otp.length < 6) {
                             Utils().showToast(
                               context: context,
                               title: "Error",

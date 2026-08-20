@@ -9,9 +9,9 @@ import '../../View/Screen/Sales Employee/Model/promo_message_model.dart';
 class ApiConstant {
   static const String baseurl = "https://saralmarketingwebapis.azurewebsites.net/api";
   static const String selectCompany = "$baseurl/User/Selectcompany/"
-      "DE0909/7";
-      // "FI3047/163";
-  static const String companyList = "$baseurl/User/Companylist/DE0909";
+      // "DE0909/7";
+      "FI3047/163";
+  static const String companyList = "$baseurl/User/Companylist/FI3047";
   static const String userLogin = "$baseurl/User/UserLogin";
   static const String isUserIsAdmin = "$baseurl/User/IsUserIsAdmin";
   static const String customerLogin = "$baseurl/User/CustomerLogin";
