@@ -4,11 +4,13 @@ import 'package:saral/View/Constant/App_Colors.dart';
 import 'package:saral/View/Constant/App_font.dart';
 import 'package:saral/View/Screen/Home/Controller/HomeController.dart';
 import 'package:saral/View/Screen/Home/Model/categoryListModel.dart';
+import 'package:saral/View/Screen/Home/Model/subCategoryListModel.dart';
 import 'package:saral/View/Screen/Sale Order/Model/brand_list_model.dart';
 import 'package:saral/View/Screen/Sale Order/Service/sales_order_cart_service.dart';
 import 'package:saral/View/Screen/Sidemenu/Sidemenu.dart';
 import 'package:saral/View/Utils/App_Routes.dart';
 import 'package:saral/View/Widget/Common_AppBar.dart';
+import 'package:saral/View/Widget/catalog_image_placeholder.dart';
 import 'package:saral/View/Widget/Common_Text.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -43,6 +45,7 @@ class _AdminProductViewState extends State<AdminProductView> {
     _scrollController.dispose();
     _searchController.dispose();
     controller.clearProductSearch();
+    controller.closeProductSearchField();
     super.dispose();
   }
 
@@ -80,48 +83,70 @@ class _AdminProductViewState extends State<AdminProductView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.brandRed,
-      appBar: CommonAppBar(
-        title: "Product",
-        showDrawer: false,
-        showBackButton: Navigator.canPop(context),
-        actions: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.shopping_cart_outlined,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(80),
+        child: Obx(() {
+          final searching = controller.showProductSearchField.value;
+          return CommonAppBar(
+            title: "Product",
+            showDrawer: false,
+            showBackButton: Navigator.canPop(context),
+            titleWidget: searching ? _appBarSearchField() : null,
+            actions: [
+              GestureDetector(
+                child: Icon(
+                  searching ? Icons.close_rounded : Icons.search_rounded,
                   color: Colors.white,
                 ),
-                onPressed: _openCart,
+                onTap: () {
+                  if (searching) {
+                    _searchController.clear();
+                    controller.clearProductSearch();
+                    controller.closeProductSearchField();
+                  } else {
+                    controller.toggleProductSearchField();
+                  }
+                },
               ),
-              if (cartCount > 0)
-                Positioned(
-                  right: 4,
-                  top: 4,
-                  child: Container(
-                    alignment: Alignment.center,
-                    constraints: const BoxConstraints(
-                      minWidth: 18,
-                      minHeight: 18,
-                    ),
-                    decoration: const BoxDecoration(
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.shopping_cart_outlined,
                       color: Colors.white,
-                      shape: BoxShape.circle,
                     ),
-                    child: Text(
-                      cartCount.toString(),
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                    onPressed: _openCart,
+                  ),
+                  if (cartCount > 0)
+                    Positioned(
+                      right: 4,
+                      top: 4,
+                      child: Container(
+                        alignment: Alignment.center,
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          cartCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
+                ],
+              ),
             ],
-          ),
-        ],
+          );
+        }),
       ),
       drawer: SideMenu(),
       body: Container(
@@ -136,8 +161,6 @@ class _AdminProductViewState extends State<AdminProductView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSearchField(),
-            const SizedBox(height: 10),
             Obx(() {
               final selected = controller.selectedBrandData.value;
               final brands = controller.brandListData;
@@ -264,7 +287,8 @@ class _AdminProductViewState extends State<AdminProductView> {
             Obx(() {
               final category = controller.selectedCategory.value;
               final brand = controller.selectedBrandData.value;
-              final title = _productsTitle(category, brand);
+              final sub = controller.selectedSubCategory.value;
+              final title = _productsTitle(category, brand, sub);
               return Row(
                 children: [
                   Expanded(
@@ -278,7 +302,9 @@ class _AdminProductViewState extends State<AdminProductView> {
                   CommonText(
                     text: controller.isItemListLoading.value
                         ? ""
-                        : "${controller.displayedProductItems.length} items",
+                        : (category != null && sub == null)
+                            ? "${controller.subCategoryListData.length} sub categories"
+                            : "${controller.displayedProductItems.length} items",
                     fontFamily: FontFamily.poppinsMedium,
                     fontSize: 12,
                     color: Colors.grey,
@@ -291,6 +317,21 @@ class _AdminProductViewState extends State<AdminProductView> {
               child: Obx(() {
                 if (controller.isItemListLoading.value) {
                   return _productGridShimmer();
+                }
+                final hasBrand =
+                    controller.selectedBrandData.value != null;
+                final hasCategory =
+                    controller.selectedCategory.value != null;
+                final hasSubCategory =
+                    controller.selectedSubCategory.value != null;
+                if (hasBrand && !hasCategory) {
+                  return _catalogMessage(
+                    icon: Icons.grid_view_rounded,
+                    message: "Please select category",
+                  );
+                }
+                if (hasCategory && !hasSubCategory) {
+                  return _adminSubCategoryList();
                 }
                 final data = controller.displayedProductItems;
                 final isSearching =
@@ -338,80 +379,14 @@ class _AdminProductViewState extends State<AdminProductView> {
                       return _productCardShimmer();
                     }
                     final model = data[index];
-                    return GestureDetector(
+                    return _adminCatalogGridCard(
+                      imageUrl: model.displayImageUrl,
+                      title: model.itemName ?? "",
+                      priceText: "₹ ${model.price ?? 0}",
+                      brand: model.brandName,
+                      category: model.category,
+                      subCategory: model.subCategory,
                       onTap: () => _openProductDetail(model),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.06),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Container(
-                                width: double.infinity,
-                                color: const Color(0xffF3F4F6),
-                                child: Image.network(
-                                  model.itemImage ?? "",
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder:
-                                      (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return Shimmer.fromColors(
-                                      baseColor: Colors.grey.shade300,
-                                      highlightColor: Colors.grey.shade100,
-                                      child: Container(
-                                        width: double.infinity,
-                                        color: Colors.white,
-                                      ),
-                                    );
-                                  },
-                                  errorBuilder: (_, __, ___) => Center(
-                                    child: Icon(
-                                      Icons.image_not_supported_outlined,
-                                      size: 36,
-                                      color: Colors.grey.shade400,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  CommonText(
-                                    text: model.itemName ?? "",
-                                    fontFamily: FontFamily.poppinsSemiBold,
-                                    fontSize: 13,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    color: Colors.black87,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  CommonText(
-                                    text: "₹ ${model.price ?? 0}",
-                                    fontFamily: FontFamily.poppinsBold,
-                                    fontSize: 14,
-                                    color: AppColors.brandRed,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     );
                   },
                 );
@@ -488,61 +463,186 @@ class _AdminProductViewState extends State<AdminProductView> {
     );
   }
 
-  String _productsTitle(CategoryListData? category, BranddData? brand) {
-    if (category != null && brand != null) {
-      return "${category.categoryName} • ${brand.brandName}";
-    }
-    if (category != null) return category.categoryName ?? "Products";
-    if (brand != null) return brand.brandName ?? "Products";
-    return "Products";
+  Widget _adminSubCategoryList() {
+    return Obx(() {
+      if (controller.isGetSubCategory.value &&
+          controller.subCategoryListData.isEmpty) {
+        return _productGridShimmer();
+      }
+
+      final items = controller.subCategoryListData;
+      if (items.isEmpty) {
+        return Center(
+          child: CommonText(
+            text: "No Sub Category Found",
+            fontFamily: FontFamily.poppinsSemiBold,
+            color: Colors.grey,
+          ),
+        );
+      }
+
+      final brand = controller.selectedBrandData.value?.brandName;
+      final category = controller.selectedCategory.value?.categoryName;
+
+      return GridView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.only(bottom: 90),
+        itemCount: items.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 0.72,
+        ),
+        itemBuilder: (context, index) {
+          final item = items[index];
+          return _adminCatalogGridCard(
+            imageUrl: item.imageUrl,
+            title: item.subCategoryName ?? "--",
+            brand: brand,
+            category: category,
+            subCategory: item.subCategoryName,
+            onTap: () => controller.onSubCategoryChanged(item),
+          );
+        },
+      );
+    });
   }
 
-  Widget _buildSearchField() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+  Widget _adminCatalogGridCard({
+    required String? imageUrl,
+    required String title,
+    String? priceText,
+    String? brand,
+    String? category,
+    String? subCategory,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                color: const Color(0xffF3F4F6),
+                child: buildCatalogNetworkImage(imageUrl: imageUrl),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CommonText(
+                    text: title,
+                    fontFamily: FontFamily.poppinsSemiBold,
+                    fontSize: 13,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    color: Colors.black87,
+                  ),
+                  if (priceText != null) ...[
+                    const SizedBox(height: 4),
+                    CommonText(
+                      text: priceText,
+                      fontFamily: FontFamily.poppinsBold,
+                      fontSize: 14,
+                      color: AppColors.brandRed,
+                    ),
+                  ],
+                  const SizedBox(height: 4),
+                  CommonLabelValueText(
+                    label: "Brand",
+                    value: brand,
+                    fontSize: 12,
+                    valueColor: AppColors.brandRed,
+                  ),
+                  const SizedBox(height: 2),
+                  CommonLabelValueText(
+                    label: "Category",
+                    value: category,
+                    fontSize: 12,
+                    valueColor: AppColors.brandRed,
+                  ),
+                  const SizedBox(height: 2),
+                  CommonLabelValueText(
+                    label: "Sub Category",
+                    value: subCategory,
+                    fontSize: 12,
+                    valueColor: AppColors.brandRed,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  String _productsTitle(
+    CategoryListData? category,
+    BranddData? brand,
+    SubCategoryListData? subCategory,
+  ) {
+    final parts = [
+      if (brand?.brandName != null) brand!.brandName!,
+      if (category?.categoryName != null) category!.categoryName!,
+      if (subCategory?.subCategoryName != null) subCategory!.subCategoryName!,
+    ];
+    if (parts.isEmpty) return "Products";
+    return parts.join(" • ");
+  }
+
+  Widget _appBarSearchField() {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.35),
+        ),
+      ),
+      alignment: Alignment.center,
       child: TextField(
         controller: _searchController,
+        autofocus: true,
         onChanged: controller.onProductSearch,
         style: TextStyle(
           fontFamily: FontFamily.poppinsMedium,
-          fontSize: 14,
-          color: Colors.black87,
+          fontSize: 15,
+          color: Colors.white,
         ),
+        cursorColor: Colors.white,
         decoration: InputDecoration(
           hintText: "Search product...",
           hintStyle: TextStyle(
-            color: Colors.grey.shade500,
+            color: Colors.white.withValues(alpha: 0.75),
             fontFamily: FontFamily.poppinsRegular,
             fontSize: 14,
           ),
-          prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
-          suffixIcon: Obx(() {
-            if (controller.productSearchQuery.value.isEmpty) {
-              return const SizedBox.shrink();
-            }
-            return IconButton(
-              icon: Icon(Icons.close, color: Colors.grey.shade500, size: 20),
-              onPressed: () {
-                _searchController.clear();
-                controller.clearProductSearch();
-              },
-            );
-          }),
+          isDense: true,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
         ),
       ),
     );
@@ -663,6 +763,27 @@ class _AdminProductViewState extends State<AdminProductView> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _catalogMessage({
+    required IconData icon,
+    required String message,
+  }) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 48, color: Colors.grey.shade400),
+          const SizedBox(height: 10),
+          CommonText(
+            text: message,
+            fontFamily: FontFamily.poppinsSemiBold,
+            color: Colors.grey,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }

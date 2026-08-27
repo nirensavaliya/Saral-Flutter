@@ -73,6 +73,7 @@ class ItemListData {
   double? maxRequiredStock;
   String? mUnitCode;
   int? orderQtyInterval;
+  String? category;
 
   ItemListData(
       {this.itemName,
@@ -119,7 +120,9 @@ class ItemListData {
         this.minRequiredStock,
         this.maxRequiredStock,
         this.mUnitCode,
-        this.orderQtyInterval});
+        this.orderQtyInterval,
+        this.category
+      });
 
   ItemListData.fromJson(Map<String, dynamic> json) {
     itemName = json['itemName'];
@@ -167,6 +170,7 @@ class ItemListData {
     maxRequiredStock = json['maxRequiredStock'];
     mUnitCode = json['mUnitCode'];
     orderQtyInterval = json['orderQtyInterval'];
+    category = json['category'];
   }
 
   String? get displayImageUrl {
@@ -226,6 +230,7 @@ class ItemListData {
     data['maxRequiredStock'] = this.maxRequiredStock;
     data['mUnitCode'] = this.mUnitCode;
     data['orderQtyInterval'] = this.orderQtyInterval;
+    data['category'] = this.category;
     return data;
   }
 }

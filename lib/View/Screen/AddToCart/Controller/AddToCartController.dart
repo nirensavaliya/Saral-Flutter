@@ -397,7 +397,7 @@ class AddToCartController extends GetxController {
       final dataa = {
         "date": dateIso,
         "taxMode": "GST",
-        "invoiceType": "Bill of Supply",
+        "invoiceType": "",
         "orderNo": orderNo,
         "customerId": tempCustomerId,
         "customerName": customerController.text,

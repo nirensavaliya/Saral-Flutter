@@ -22,6 +22,7 @@ class ApiConstant {
   static const String todaysTotalpurchase = '$baseurl/Dashboard/TodaysTotalpurchase';
   static const String monthlyTotalpurchase = '$baseurl/Dashboard/MonthlyTotalpurchase';
   static const String getCategoryList = "$baseurl/Master/GetCategoryList";
+  static const String getSubCategoryList = "$baseurl/Master/GetSubCategoryList";
   static const String getItemListByBrandAndCategoryPagingPageSize6 =
       "$baseurl/Master/GetItemListbyCategories_paging";
   static const String getCategoryItem = "$baseurl/Master/GetItemListByBrandandCategory_paging?";

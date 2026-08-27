@@ -8,6 +8,7 @@ import '../Utils/App_Routes.dart';
 
 class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
+  final Widget? titleWidget;
   final bool showBackButton;
   final bool showCartButton;
   final bool showDrawer;
@@ -22,6 +23,7 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
   CommonAppBar({
     super.key,
     required this.title,
+    this.titleWidget,
     this.showBackButton = true,
     this.showCartButton = false,
     this.showDrawer = false,
@@ -85,24 +87,6 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
                          ),
                          ),
                          )
-                        // CircleAvatar(
-                        //   radius: 22,
-                        //   backgroundColor: Colors.white,
-                        //   child: IconButton(
-                        //     icon: const Icon(
-                        //       Icons.arrow_back_ios_new,
-                        //       size: 18,
-                        //       color: Colors.black,
-                        //     ),
-                        //     onPressed: () {
-                        //       if (onBack != null) {
-                        //         onBack!();
-                        //       } else {
-                        //         Get.back();
-                        //       }
-                        //     },
-                        //   ),
-                        // )
                       else if (showCartButton)
                           GetBuilder<AddToCartController>(
                             init: Get.isRegistered<AddToCartController>()
@@ -155,21 +139,30 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
                                 );
                               },
                             ),
-                      Spacer(),
+                      if (titleWidget != null)
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: titleWidget!,
+                          ),
+                        )
+                      else
+                        const Spacer(),
                       if (actions != null) ...actions!,
                     ],
                   ),
 
-                  IgnorePointer(
-                    child: Text(
-                      title,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontFamily: FontFamily.poppinsBold,
+                  if (titleWidget == null)
+                    IgnorePointer(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontFamily: FontFamily.poppinsBold,
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

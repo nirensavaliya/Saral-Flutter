@@ -7,9 +7,10 @@ import 'package:saral/View/Constant/App_Images.dart';
 import 'package:saral/View/Constant/App_font.dart';
 import 'package:saral/View/Screen/Home/Controller/HomeController.dart';
 import 'package:saral/View/Screen/Home/Model/GetReportItemListModel.dart';
-import 'package:saral/View/Screen/Home/Model/categoryListModel.dart';
+import 'package:saral/View/Screen/Home/Model/subCategoryListModel.dart';
 import 'package:saral/View/Screen/Sale Order/Model/brand_list_model.dart';
 import 'package:saral/View/Utils/App_Routes.dart';
+import 'package:saral/View/Widget/sub_category_list_card.dart';
 import 'package:saral/View/Widget/Common_Text.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -249,15 +250,27 @@ class HomeView extends GetView<HomeController> {
           children: [
             _catalogTopHeader(controller),
             Obx(() {
-              final hasCategory = controller.selectedCategory.value != null;
-              final showAll = controller.showAllCategories.value;
-              if (hasCategory || showAll || controller.showProductSearchField.value) {
+              if (controller.showProductSearchField.value) {
                 return const SizedBox.shrink();
               }
-              return Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: _categoriesSection(controller),
-              );
+              final hasBrand = controller.selectedBrandData.value != null;
+              final hasCategory = controller.selectedCategory.value != null;
+              final showAllBrands = controller.showAllBrands.value;
+              final showAllCategories = controller.showAllCategories.value;
+
+              if (!hasBrand && !showAllBrands) {
+                return Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: _brandsSection(controller),
+                );
+              }
+              if (hasBrand && !hasCategory && !showAllCategories) {
+                return Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: _categoriesSection(controller),
+                );
+              }
+              return const SizedBox.shrink();
             }),
             const SizedBox(height: 12),
             Expanded(
@@ -271,12 +284,36 @@ class HomeView extends GetView<HomeController> {
                   return false;
                 },
                 child: Obx(() {
+                if (controller.showAllBrands.value &&
+                    controller.selectedBrandData.value == null) {
+                  return _allBrandsGrid(controller);
+                }
                 if (controller.showAllCategories.value &&
                     controller.selectedCategory.value == null) {
                   return _allCategoriesGrid(controller);
                 }
                 if (controller.isItemListLoading.value) {
                   return _productGridShimmer();
+                }
+                final hasBrand =
+                    controller.selectedBrandData.value != null;
+                final hasCategory =
+                    controller.selectedCategory.value != null;
+                final hasSubCategory =
+                    controller.selectedSubCategory.value != null;
+                final showAllBrands = controller.showAllBrands.value;
+                final showAllCategories = controller.showAllCategories.value;
+                if (hasBrand &&
+                    !hasCategory &&
+                    !showAllBrands &&
+                    !showAllCategories) {
+                  return _catalogMessage(
+                    icon: Icons.grid_view_rounded,
+                    message: "Please select category",
+                  );
+                }
+                if (hasCategory && !hasSubCategory) {
+                  return _subCategoryListPanel(controller);
                 }
                 final data = controller.displayedProductItems;
                 final isSearching =
@@ -306,21 +343,30 @@ class HomeView extends GetView<HomeController> {
                   );
                 }
 
-                return GridView.builder(
+                return ListView.separated(
                   controller: controller.scrollController,
                   physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(bottom: 12),
                   itemCount:
                       data.length + (controller.isLoadingMore.value ? 1 : 0),
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
-                    childAspectRatio: 0.68,
-                  ),
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
-                    if (index == data.length) return _productCardShimmer();
-                    return _premiumProductCard(data[index]);
+                    if (index == data.length) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.brandRed,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+                    return _productListCard(data[index]);
                   },
                 );
               }),
@@ -336,17 +382,30 @@ class HomeView extends GetView<HomeController> {
     return Obx(() {
       final selected = controller.selectedCategory.value;
       final brand = controller.selectedBrandData.value;
+      final sub = controller.selectedSubCategory.value;
       final showAll = controller.showAllCategories.value;
+      final showAllBrands = controller.showAllBrands.value;
       final searching = controller.showProductSearchField.value;
       final expanded = controller.isCatalogFullScreen.value;
-      final showBack = selected != null || showAll || expanded || searching;
+      final showBack = brand != null ||
+          selected != null ||
+          sub != null ||
+          showAll ||
+          showAllBrands ||
+          expanded ||
+          searching;
 
-      final title = selected == null && brand == null
-          ? (showAll ? "Categories" : "Categories")
-          : [
-              if (selected != null) selected.categoryName ?? "Products",
-              if (brand != null) brand.brandName,
-            ].whereType<String>().join(" • ");
+      final title = [
+        if (brand != null) brand.brandName,
+        if (selected != null) selected.categoryName,
+        if (sub != null) sub.subCategoryName,
+      ].whereType<String>().where((e) => e.trim().isNotEmpty).join(" • ");
+
+      final headerTitle = title.isNotEmpty
+          ? title
+          : (showAllBrands
+              ? "Brands"
+              : (showAll ? "Categories" : "Brands"));
 
       return Row(
         children: [
@@ -374,7 +433,7 @@ class HomeView extends GetView<HomeController> {
           else
             Expanded(
               child: CommonText(
-                text: title,
+                text: headerTitle,
                 fontFamily: FontFamily.poppinsBold,
                 fontSize: 18,
                 color: AppColors.black,
@@ -382,7 +441,25 @@ class HomeView extends GetView<HomeController> {
             ),
           const SizedBox(width: 8),
           _homeHeaderIcons(controller),
-          if (!searching && selected == null && !showAll) ...[
+          if (!searching &&
+              brand == null &&
+              !showAll &&
+              !showAllBrands) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () => controller.openAllBrands(),
+              child: CommonText(
+                text: "VIEW ALL",
+                fontFamily: FontFamily.jetBrainMedium,
+                fontSize: 13,
+                color: AppColors.brandRed,
+              ),
+            ),
+          ],
+          if (!searching &&
+              brand != null &&
+              selected == null &&
+              !showAll) ...[
             const SizedBox(width: 8),
             GestureDetector(
               onTap: () => controller.openAllCategories(),
@@ -404,12 +481,24 @@ class HomeView extends GetView<HomeController> {
       controller.closeProductSearchField();
       return;
     }
+    if (controller.selectedSubCategory.value != null) {
+      controller.clearSubCategorySelection();
+      return;
+    }
     if (controller.selectedCategory.value != null) {
       controller.clearCategorySelection();
       return;
     }
     if (controller.showAllCategories.value) {
       controller.closeAllCategories();
+      return;
+    }
+    if (controller.selectedBrandData.value != null) {
+      controller.clearBrandSelection();
+      return;
+    }
+    if (controller.showAllBrands.value) {
+      controller.closeAllBrands();
       return;
     }
     controller.collapseCatalog();
@@ -730,6 +819,66 @@ class HomeView extends GetView<HomeController> {
     );
   }
 
+  Widget _allBrandsGrid(HomeController controller) {
+    final brands = controller.brandListData;
+    if (brands.isEmpty) {
+      return Center(
+        child: CommonText(
+          text: "No Brand Found",
+          fontFamily: FontFamily.poppinsSemiBold,
+          color: Colors.grey,
+        ),
+      );
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.only(top: 4, bottom: 8),
+      itemCount: brands.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 16,
+        childAspectRatio: 0.82,
+      ),
+      itemBuilder: (context, index) {
+        final item = brands[index];
+        return _circleChip(
+          imageUrl: item.imageUrl,
+          title: item.brandName ?? "",
+          onTap: () => controller.onBrandChanged(item),
+        );
+      },
+    );
+  }
+
+  Widget _brandsSection(HomeController controller) {
+    return Obx(() {
+      if (controller.isGetBrand.value && controller.brandListData.isEmpty) {
+        return _horizontalChipShimmer();
+      }
+
+      final brands = controller.brandListData;
+      if (brands.isEmpty) return const SizedBox.shrink();
+
+      return SizedBox(
+        height: 88,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: brands.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 18),
+          itemBuilder: (context, index) {
+            final item = brands[index];
+            return _circleChip(
+              imageUrl: item.imageUrl,
+              title: item.brandName ?? "",
+              onTap: () => controller.onBrandChanged(item),
+            );
+          },
+        ),
+      );
+    });
+  }
+
   Widget _allCategoriesGrid(HomeController controller) {
     final categories = controller.categoryListData;
     if (categories.isEmpty) {
@@ -753,8 +902,9 @@ class HomeView extends GetView<HomeController> {
       ),
       itemBuilder: (context, index) {
         final item = categories[index];
-        return _categoryChip(
-          item: item,
+        return _circleChip(
+          imageUrl: item.imageUrl,
+          title: item.categoryName ?? "",
           onTap: () => controller.onCategoryChanged(item),
         );
       },
@@ -763,60 +913,233 @@ class HomeView extends GetView<HomeController> {
 
   Widget _categoriesSection(HomeController controller) {
     return Obx(() {
-          if (controller.isGetCategory.value &&
-              controller.categoryListData.isEmpty) {
-            return SizedBox(
-              height: 88,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: 5,
-                separatorBuilder: (_, __) => const SizedBox(width: 18),
-                itemBuilder: (_, __) => Shimmer.fromColors(
-                  baseColor: Colors.grey.shade300,
-                  highlightColor: Colors.grey.shade100,
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF4F3F8),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(height: 10, width: 48, color: Colors.white),
-                    ],
-                  ),
-                ),
-              ),
+      if (controller.isGetCategory.value &&
+          controller.categoryListData.isEmpty) {
+        return _horizontalChipShimmer();
+      }
+
+      final categories = controller.categoryListData;
+      if (categories.isEmpty) return const SizedBox.shrink();
+
+      return SizedBox(
+        height: 88,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: categories.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 18),
+          itemBuilder: (context, index) {
+            final item = categories[index];
+            return _circleChip(
+              imageUrl: item.imageUrl,
+              title: item.categoryName ?? "",
+              onTap: () => controller.onCategoryChanged(item),
             );
-          }
-
-          final categories = controller.categoryListData;
-          if (categories.isEmpty) return const SizedBox.shrink();
-
-          return SizedBox(
-            height: 88,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: categories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 18),
-              itemBuilder: (context, index) {
-                final item = categories[index];
-                return _categoryChip(
-                  item: item,
-                  onTap: () => controller.onCategoryChanged(item),
-                );
-              },
-            ),
-          );
+          },
+        ),
+      );
     });
   }
 
-  Widget _categoryChip({
-    required CategoryListData item,
+  Widget _subCategoryListPanel(HomeController controller) {
+    return Obx(() {
+      if (controller.isGetSubCategory.value &&
+          controller.subCategoryListData.isEmpty) {
+        return ListView.separated(
+          itemCount: 4,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (_, __) => Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+            child: Container(
+              height: 88,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        );
+      }
+
+      final items = controller.subCategoryListData;
+      if (items.isEmpty) {
+        return Center(
+          child: CommonText(
+            text: "No Sub Category Found",
+            fontFamily: FontFamily.poppinsSemiBold,
+            color: Colors.grey,
+          ),
+        );
+      }
+
+      return ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final item = items[index];
+          return SubCategoryListCard.fromData(
+            item: item,
+            onTap: () => controller.onSubCategoryChanged(item),
+          );
+        },
+      );
+    });
+  }
+
+  Widget _productListCard(ItemListData model) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: () {
+          Get.toNamed(AppRoutes.productDetailViewScreen, arguments: model);
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CommonText(
+                text: "Product Name",
+                fontFamily: FontFamily.poppinsRegular,
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+              const SizedBox(height: 4),
+              CommonText(
+                text: model.itemName ?? "--",
+                fontFamily: FontFamily.poppinsSemiBold,
+                fontSize: 16,
+                color: AppColors.black,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CommonText(
+                          text: "Type",
+                          fontFamily: FontFamily.poppinsRegular,
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF4F4F4),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: CommonText(
+                            text: (model.subCategory ?? model.unitCode ?? "--")
+                                .trim()
+                                .isEmpty
+                                ? "--"
+                                : (model.subCategory ?? model.unitCode)!,
+                            fontFamily: FontFamily.poppinsMedium,
+                            fontSize: 14,
+                            color: AppColors.black,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CommonText(
+                          text: "Sale Price",
+                          fontFamily: FontFamily.poppinsRegular,
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF4F4F4),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: CommonText(
+                            text: "₹ ${model.price ?? 0}",
+                            fontFamily: FontFamily.poppinsBold,
+                            fontSize: 14,
+                            color: AppColors.brandRed,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _horizontalChipShimmer() {
+    return SizedBox(
+      height: 88,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: 5,
+        separatorBuilder: (_, __) => const SizedBox(width: 18),
+        itemBuilder: (_, __) => Shimmer.fromColors(
+          baseColor: Colors.grey.shade300,
+          highlightColor: Colors.grey.shade100,
+          child: Column(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF4F3F8),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(height: 10, width: 48, color: Colors.white),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _circleChip({
+    required String? imageUrl,
+    required String title,
     required VoidCallback onTap,
+    bool isSelected = false,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -833,8 +1156,10 @@ class HomeView extends GetView<HomeController> {
                 shape: BoxShape.circle,
                 color: const Color(0xFFF4F3F8),
                 border: Border.all(
-                  color: const Color(0xFFE6BDB8),
-                  width: 1,
+                  color: isSelected
+                      ? AppColors.brandRed
+                      : const Color(0xFFE6BDB8),
+                  width: isSelected ? 2 : 1,
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -849,7 +1174,7 @@ class HomeView extends GetView<HomeController> {
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Image.network(
-                    item.imageUrl ?? "",
+                    imageUrl ?? "",
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) => Icon(
                       Icons.campaign_outlined,
@@ -862,143 +1187,16 @@ class HomeView extends GetView<HomeController> {
             ),
             const SizedBox(height: 8),
             Text(
-              item.categoryName ?? "",
+              title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: FontFamily.poppinsMedium,
                 fontSize: 12,
-                color: const Color(0xFF4B5563),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _premiumProductCard(ItemListData model) {
-    return GestureDetector(
-      onTap: () {
-        Get.toNamed(
-          AppRoutes.productDetailViewScreen,
-          arguments: model,
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: const Color(0xFFFDE8E8),
-            width: 2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 14,
-              spreadRadius: 0,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(19),
-                ),
-                child: Container(
-                  width: double.infinity,
-                  color: const Color(0xffF3F4F6),
-                  child: Image.network(
-                    model.itemImage ?? "",
-                    width: double.infinity,
-                    height: double.infinity,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Shimmer.fromColors(
-                        baseColor: Colors.grey.shade300,
-                        highlightColor: Colors.grey.shade100,
-                        child: Container(
-                          width: double.infinity,
-                          color: Colors.white,
-                        ),
-                      );
-                    },
-                    errorBuilder: (_, __, ___) => Center(
-                      child: Icon(
-                        Icons.image_not_supported_outlined,
-                        size: 36,
-                        color: Colors.grey.shade400,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(15, 12, 15, 15),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    model.itemName ?? "",
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: FontFamily.poppinsSemiBold,
-                      fontSize: 14,
-                      color: AppColors.black,
-                      height: 1.25,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          "₹ ${model.price ?? 0}",
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontFamily: FontFamily.poppinsBold,
-                            fontSize: 15,
-                            color: AppColors.brandRed,
-                          ),
-                        ),
-                      ),
-                      Material(
-                        color: AppColors.brandRed,
-                        shape: const CircleBorder(),
-                        child: InkWell(
-                          customBorder: const CircleBorder(),
-                          onTap: () {
-                            Get.toNamed(
-                              AppRoutes.productDetailViewScreen,
-                              arguments: model,
-                            );
-                          },
-                          child: const Padding(
-                            padding: EdgeInsets.all(7),
-                            child: Icon(
-                              Icons.add,
-                              size: 18,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                color: isSelected
+                    ? AppColors.brandRed
+                    : const Color(0xFF4B5563),
               ),
             ),
           ],
@@ -1133,7 +1331,7 @@ class HomeView extends GetView<HomeController> {
         crossAxisCount: 2,
         crossAxisSpacing: 14,
         mainAxisSpacing: 14,
-        childAspectRatio: 0.68,
+        childAspectRatio: 0.58,
       ),
       itemBuilder: (_, __) => _productCardShimmer(),
     );
@@ -1199,6 +1397,27 @@ class HomeView extends GetView<HomeController> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _catalogMessage({
+    required IconData icon,
+    required String message,
+  }) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 48, color: Colors.grey.shade400),
+          const SizedBox(height: 10),
+          CommonText(
+            text: message,
+            fontFamily: FontFamily.poppinsSemiBold,
+            color: Colors.grey,
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

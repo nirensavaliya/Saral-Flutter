@@ -26,6 +26,7 @@ import 'package:saral/View/Screen/Pending%20Sale%20Order/View/pending_sale_order
 import 'package:saral/View/Screen/Product/Controller/productController.dart';
 import 'package:saral/View/Screen/Product/view/ProductScreen.dart';
 import 'package:saral/View/Screen/ProductDetail/Controller/ProductDetailController.dart';
+import 'package:saral/View/Screen/ProductDetail/view/sub_category_detail_view.dart';
 import 'package:saral/View/Screen/ProductDetail/view/productDetailView.dart';
 import 'package:saral/View/Screen/Profile/controller/ProfileController.dart';
 import 'package:saral/View/Screen/Profile/view/ProfileScreen.dart';
@@ -94,6 +95,13 @@ class AppPages {
     GetPage(
       name: AppRoutes.productDetailViewScreen,
       page: () => ProductDetailView(itemListModelData: null),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<ProductDetailController>(() => ProductDetailController());
+      }),
+    ),
+    GetPage(
+      name: AppRoutes.subCategoryDetailScreen,
+      page: () => const SubCategoryDetailView(),
       binding: BindingsBuilder(() {
         Get.lazyPut<ProductDetailController>(() => ProductDetailController());
       }),

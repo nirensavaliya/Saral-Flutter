@@ -6,6 +6,7 @@ class AppRoutes {
   static const String productScreen = "/ProductScreen";
   static const String adminProductScreen = "/AdminProductView";
   static const String productDetailViewScreen = "/ProductDetailView";
+  static const String subCategoryDetailScreen = "/SubCategoryDetailView";
   static const String addToCartScreen = "/AddToCart";
   static const String shippingAddressScreen = "/ShippingAddress";
   static const String orderSuccessScreen = "/OrderSuccess";

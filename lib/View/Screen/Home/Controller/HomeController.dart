@@ -12,9 +12,12 @@ import 'package:saral/View/Constant/App_font.dart';
 import 'package:saral/View/Screen/Home/Model/GetItemListModel.dart';
 import 'package:saral/View/Screen/Home/Model/GetReportItemListModel.dart';
 import 'package:saral/View/Screen/Home/Model/categoryListModel.dart';
+import 'package:saral/View/Screen/Home/Model/subCategoryListModel.dart';
 import 'package:saral/View/Screen/Sale Order/Model/brand_list_model.dart';
 import 'package:saral/View/Screen/Sale Order/Model/get_gst_model.dart';
 
+import 'package:saral/View/Screen/ProductDetail/Model/sub_category_detail_args.dart';
+import 'package:saral/View/Utils/App_Routes.dart';
 import '../../../../Common/Global.dart';
 import '../Model/off_image_model.dart';
 
@@ -25,12 +28,16 @@ class HomeController extends GetxController {
   RxInt activeIndex = 0.obs;
   RxList<CategoryListData> categoryListData = <CategoryListData>[].obs;
   RxList<BranddData> brandListData = <BranddData>[].obs;
+  RxList<SubCategoryListData> subCategoryListData = <SubCategoryListData>[].obs;
   Rx<CategoryListData?> selectedCategory = Rx<CategoryListData?>(null);
   Rx<BranddData?> selectedBrandData = Rx<BranddData?>(null);
+  Rx<SubCategoryListData?> selectedSubCategory = Rx<SubCategoryListData?>(null);
   RxBool isGetCategory = false.obs;
   RxBool isGetBrand = false.obs;
-  /// VIEW ALL → full-screen categories grid
+  RxBool isGetSubCategory = false.obs;
+  /// VIEW ALL → full-screen brands / categories grid
   RxBool showAllCategories = false.obs;
+  RxBool showAllBrands = false.obs;
   final ApiService _apiService = ApiService();
   RxBool isItemList = false.obs;
   RxInt selectedIndex = 0.obs;
@@ -51,8 +58,11 @@ class HomeController extends GetxController {
 
   bool get hideHomeBanner =>
       isCatalogFullScreen.value ||
+      selectedBrandData.value != null ||
       selectedCategory.value != null ||
+      selectedSubCategory.value != null ||
       showAllCategories.value ||
+      showAllBrands.value ||
       showProductSearchField.value;
 
   void expandCatalog() {
@@ -156,8 +166,7 @@ class HomeController extends GetxController {
   Future<void> _bootstrap() async {
     await loadGstTaxList();
     apiOfferImageMessage();
-    getCategoryList();
-    loadBrandListIfNeeded();
+    await loadBrandListIfNeeded();
     itemListApi();
   }
 
@@ -237,22 +246,7 @@ class HomeController extends GetxController {
 
   Future<void> loadCategoryListIfNeeded() async {
     if (categoryListData.isNotEmpty || isGetCategory.value) return;
-    try {
-      isGetCategory.value = true;
-      final token = GetStorageData.readString(GetStorageData.token);
-      final response = await _apiService.getRequest(
-        ApiConstant.getCategoryList,
-        headers: {"Authorization": "Bearer $token"},
-      );
-      if (response.statusCode == 200) {
-        final getCategory = CategoryListModel.fromJson(response.data);
-        categoryListData.value = getCategory.data ?? [];
-      }
-    } catch (e) {
-      log('loadCategoryListIfNeeded error: $e');
-    } finally {
-      isGetCategory.value = false;
-    }
+    await getCategoryList(brandId: selectedBrandData.value?.brandID);
   }
 
   Future<void> getBrandListByCategoryApi(int categoryId) async {
@@ -274,37 +268,21 @@ class HomeController extends GetxController {
     }
   }
 
-  void onBrandChanged(BranddData? value) async {
-    if (value == null) return;
-
-    selectedBrandData.value = value;
-
-    page.value = 1;
-    hasMoreData.value = true;
-    isLoadingMore.value = false;
-    itemList.clear();
-
-    await itemListApi();
-  }
-
-  Future<void> clearBrandSelection() async {
-    selectedBrandData.value = null;
-    page.value = 1;
-    hasMoreData.value = true;
-    isLoadingMore.value = false;
-    itemList.clear();
-    await itemListApi();
-  }
-
-  Future<void> getCategoryList() async {
+  Future<void> getCategoryList({int? brandId, bool showLoader = false}) async {
     try {
       isGetCategory.value = true;
-      CommonLoader.show(Get.context!);
+      if (showLoader && Get.context != null) {
+        CommonLoader.show(Get.context!);
+      }
       final companyToken = GetStorageData.readString(
         GetStorageData.token,
       );
+      var url = ApiConstant.getCategoryList;
+      if (brandId != null) {
+        url += "?BrandId=$brandId";
+      }
       var response = await _apiService.getRequest(
-        ApiConstant.getCategoryList,
+        url,
         headers: {"Authorization": "Bearer $companyToken"},
       );
       print("dashboard Element-----${response.data}");
@@ -316,11 +294,101 @@ class HomeController extends GetxController {
       print("Api Error ---$e");
     } finally {
       isGetCategory.value = false;
-      CommonLoader.hide();
+      if (showLoader && Get.context != null) {
+        CommonLoader.hide();
+      }
     }
   }
 
-  void onCategoryChanged(CategoryListData? value) async {
+  Future<void> getSubCategoryList({int? categoryId, int? brandId}) async {
+    try {
+      isGetSubCategory.value = true;
+      final token = GetStorageData.readString(GetStorageData.token);
+      var url = ApiConstant.getSubCategoryList;
+      final params = <String>[];
+      if (categoryId != null) params.add("CategoryId=$categoryId");
+      if (brandId != null) params.add("BrandId=$brandId");
+      if (params.isNotEmpty) {
+        url += "?${params.join("&")}";
+      }
+      final response = await _apiService.getRequest(
+        url,
+        headers: {"Authorization": "Bearer $token"},
+      );
+      if (response.statusCode == 200) {
+        final model = SubCategoryListModel.fromJson(response.data);
+        subCategoryListData.value = model.data ?? [];
+      }
+    } catch (e) {
+      log('getSubCategoryList error: $e');
+      subCategoryListData.clear();
+    } finally {
+      isGetSubCategory.value = false;
+    }
+  }
+
+  void _showAppLoader() {
+    final context = Get.context;
+    if (context != null) {
+      CommonLoader.show(context);
+    }
+  }
+
+  void _hideAppLoader() {
+    CommonLoader.hide();
+  }
+
+  void _resetPaging() {
+    page.value = 1;
+    hasMoreData.value = true;
+    isLoadingMore.value = false;
+    itemList.clear();
+  }
+
+  Future<void> onBrandChanged(BranddData? value) async {
+    if (value == null) return;
+
+    showAllBrands.value = false;
+    showAllCategories.value = false;
+    selectedBrandData.value = value;
+    selectedCategory.value = null;
+    selectedSubCategory.value = null;
+    subCategoryListData.clear();
+    _resetPaging();
+    isItemListLoading.value = true;
+
+    _showAppLoader();
+    try {
+      if (value.brandID != null) {
+        await getCategoryList(brandId: value.brandID);
+      }
+      await itemListApi(force: true);
+    } finally {
+      _hideAppLoader();
+    }
+  }
+
+  Future<void> clearBrandSelection() async {
+    selectedBrandData.value = null;
+    selectedCategory.value = null;
+    selectedSubCategory.value = null;
+    showAllBrands.value = false;
+    showAllCategories.value = false;
+    categoryListData.clear();
+    subCategoryListData.clear();
+    _resetPaging();
+    isItemListLoading.value = true;
+
+    _showAppLoader();
+    try {
+      await getBrandList();
+      await itemListApi(force: true);
+    } finally {
+      _hideAppLoader();
+    }
+  }
+
+  Future<void> onCategoryChanged(CategoryListData? value) async {
     print("onCategoryChanged called");
     print("Category = ${value?.categoryName}");
     print("CategoryId = ${value?.categoryID}");
@@ -329,22 +397,100 @@ class HomeController extends GetxController {
 
     showAllCategories.value = false;
     selectedCategory.value = value;
-    selectedBrandData.value = null;
+    selectedSubCategory.value = null;
+    subCategoryListData.clear();
+    _resetPaging();
+    isItemListLoading.value = false;
 
-    page.value = 1;
-    hasMoreData.value = true;
-    isLoadingMore.value = false;
-    itemList.clear();
+    _showAppLoader();
+    try {
+      await getSubCategoryList(
+        categoryId: value.categoryID,
+        brandId: selectedBrandData.value?.brandID,
+      );
+    } finally {
+      _hideAppLoader();
+    }
+  }
 
-    if (value.categoryID != null) {
-      await getBrandListByCategoryApi(value.categoryID!);
+  Future<void> onSubCategoryChanged(
+    SubCategoryListData? value, {
+    bool navigateToDetail = true,
+  }) async {
+    if (value == null) return;
+
+    _showAppLoader();
+    List<ItemListData> loadedItems = [];
+    try {
+      selectedSubCategory.value = value;
+      _resetPaging();
+      isItemListLoading.value = true;
+      await itemListApi(force: true);
+
+      loadedItems = itemList
+          .map((e) => _ensureSubCategory(e, value.subCategoryName))
+          .toList();
+
+      if (loadedItems.isEmpty) {
+        selectedSubCategory.value = null;
+        itemList.clear();
+        return;
+      }
+
+      if (navigateToDetail) {
+        selectedSubCategory.value = null;
+        itemList.clear();
+      } else {
+        itemList.value = loadedItems;
+      }
+    } finally {
+      isItemListLoading.value = false;
+      _hideAppLoader();
     }
 
-    await itemListApi();
+    if (loadedItems.isEmpty || !navigateToDetail) return;
+
+    await Get.toNamed(
+      AppRoutes.subCategoryDetailScreen,
+      arguments: SubCategoryDetailArgs(
+        subCategory: value,
+        items: loadedItems,
+      ),
+    );
+  }
+
+  ItemListData _ensureSubCategory(ItemListData item, String? subCategoryName) {
+    final name = subCategoryName?.trim();
+    if (name != null &&
+        name.isNotEmpty &&
+        (item.subCategory == null || item.subCategory!.trim().isEmpty)) {
+      item.subCategory = name;
+    }
+    return item;
+  }
+
+  Future<void> clearSubCategorySelection() async {
+    selectedSubCategory.value = null;
+    itemList.clear();
+    _resetPaging();
+    isItemListLoading.value = false;
+  }
+
+  void openAllBrands() {
+    selectedBrandData.value = null;
+    selectedCategory.value = null;
+    selectedSubCategory.value = null;
+    showAllCategories.value = false;
+    showAllBrands.value = true;
+  }
+
+  void closeAllBrands() {
+    showAllBrands.value = false;
   }
 
   void openAllCategories() {
     selectedCategory.value = null;
+    selectedSubCategory.value = null;
     showAllCategories.value = true;
   }
 
@@ -354,14 +500,21 @@ class HomeController extends GetxController {
 
   Future<void> clearCategorySelection() async {
     selectedCategory.value = null;
-    selectedBrandData.value = null;
+    selectedSubCategory.value = null;
     showAllCategories.value = false;
-    page.value = 1;
-    hasMoreData.value = true;
-    isLoadingMore.value = false;
-    itemList.clear();
-    await getBrandList();
-    await itemListApi();
+    subCategoryListData.clear();
+    _resetPaging();
+    isItemListLoading.value = true;
+
+    _showAppLoader();
+    try {
+      if (selectedBrandData.value?.brandID != null) {
+        await getCategoryList(brandId: selectedBrandData.value!.brandID);
+      }
+      await itemListApi(force: true);
+    } finally {
+      _hideAppLoader();
+    }
   }
 
   void _updateHasMorePages(Map<String, dynamic> responseData,
@@ -404,16 +557,16 @@ class HomeController extends GetxController {
     return int.tryParse(value.toString());
   }
 
-  Future<void> itemListApi({bool loadMore = false}) async {
+  Future<void> itemListApi({bool loadMore = false, bool force = false}) async {
     if (_usesPagingApi) {
       if (loadMore) {
         if (!hasMoreData.value || isLoadingMore.value || isItemList.value) {
           return;
         }
-      } else if (isItemListLoading.value) {
+      } else if (isItemListLoading.value && !force) {
         return;
       }
-    } else if (isItemListLoading.value) {
+    } else if (isItemListLoading.value && !force) {
       return;
     }
 
@@ -445,6 +598,14 @@ class HomeController extends GetxController {
       if (brandId != null) {
         url += "&BrandId=$brandId";
       }
+      final subCategoryId = selectedSubCategory.value?.subCategoryID;
+      if (subCategoryId != null) {
+        url += "&SubCategoryId=$subCategoryId";
+      }
+      final searchText = productSearchQuery.value.trim();
+      if (searchText.isNotEmpty) {
+        url += "&SearchText=${Uri.encodeQueryComponent(searchText)}";
+      }
 
       final response = await _apiService.getRequest(
         url,
@@ -467,6 +628,9 @@ class HomeController extends GetxController {
             orderQtyInterval: e.orderQtyInterval,
             gstCodeId: e.gstCodeId,
             gstTaxName: ApiConstant.gstTaxNameForCode(e.gstCodeId),
+            brandName: e.brandName,
+            category: e.category,
+            subCategory: e.subCategory,
           );
         }).toList();
 
