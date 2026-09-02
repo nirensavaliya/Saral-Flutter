@@ -9,7 +9,6 @@ import 'package:saral/View/Screen/ProductDetail/Model/sub_category_detail_args.d
 import 'package:saral/View/Screen/ProductDetail/view/FlyToCartAnimation.dart';
 import 'package:saral/View/Utils/App_Routes.dart';
 import 'package:saral/View/Widget/Common_AppBar.dart';
-import 'package:saral/View/Widget/sub_category_list_card.dart';
 import 'package:saral/View/Widget/Common_Text.dart';
 import 'package:saral/View/Widget/catalog_image_placeholder.dart';
 
@@ -25,54 +24,101 @@ class _SubCategoryDetailViewState extends State<SubCategoryDetailView> {
   final ProductDetailController _cartController = Get.put(
     ProductDetailController(),
   );
-  int _selectedIndex = 0;
+  final Set<int> _selectedIndices = <int>{};
+  final Map<int, int> _qtyByIndex = <int, int>{};
+  int? _previewIndex;
 
   @override
   void initState() {
     super.initState();
     _args = Get.arguments as SubCategoryDetailArgs;
-    if (_args.items.isNotEmpty) {
-      _cartController.initQtyOptions(_args.items.first);
+    if (_args.items.length == 1) {
+      _selectedIndices.add(0);
+      _previewIndex = 0;
+      _qtyByIndex[0] = _qtyOptionsFor(0).first;
     }
   }
 
-  ItemListData get _selectedItem => _args.items[_selectedIndex];
-
-  String get _subCategoryName {
-    final fromArgs = _args.subCategory.subCategoryName?.trim();
-    if (fromArgs != null && fromArgs.isNotEmpty) return fromArgs;
-    final fromItem = _selectedItem.subCategory?.trim();
-    if (fromItem != null && fromItem.isNotEmpty) return fromItem;
-    return "--";
+  ItemListData? get _previewItem {
+    final index = _previewIndex;
+    if (index != null && index >= 0 && index < _args.items.length) {
+      return _args.items[index];
+    }
+    return _args.items.isEmpty ? null : _args.items.first;
   }
 
-  void _selectItem(int index) {
-    if (index == _selectedIndex) return;
+  List<int> _qtyOptionsFor(int index) {
+    return ProductDetailController.qtyOptionsFor(_args.items[index]);
+  }
+
+  void _toggleVariant(int index) {
     setState(() {
-      _selectedIndex = index;
-      _cartController.initQtyOptions(_args.items[index]);
+      if (_selectedIndices.contains(index)) {
+        _selectedIndices.remove(index);
+        _qtyByIndex.remove(index);
+        if (_previewIndex == index) {
+          _previewIndex =
+              _selectedIndices.isEmpty ? null : _selectedIndices.last;
+        }
+      } else {
+        _selectedIndices.add(index);
+        _previewIndex = index;
+        _qtyByIndex[index] = _qtyOptionsFor(index).first;
+      }
+    });
+  }
+
+  void _setVariantQty(int index, int qty) {
+    setState(() {
+      _qtyByIndex[index] = qty;
     });
   }
 
   Future<void> _handleAddToCart() async {
-    final item = _selectedItem;
-    await _cartController.addProductToCart(item);
+    if (_selectedIndices.isEmpty) {
+      final ctx = Get.context;
+      if (ctx != null) {
+        Utils().showToast(
+          context: ctx,
+          title: "Select Item",
+          message: "Please select at least one variant",
+          isSuccess: false,
+        );
+      }
+      return;
+    }
+
+    final entries = _selectedIndices.map((index) {
+      return (
+        item: _args.items[index],
+        qty: _qtyByIndex[index] ?? _qtyOptionsFor(index).first,
+      );
+    }).toList();
+
+    await _cartController.addProductsToCart(entries);
     if (!mounted) return;
 
-    await FlyToCartAnimator.fly(
-      context: context,
-      startKey: _cartController.imageKey,
-      cartKey: _cartController.cartKey,
-      imageUrl: item.displayImageUrl ?? '',
-      onComplete: _cartController.animateCart,
-    );
+    final preview = _previewItem;
+    if (preview != null) {
+      await FlyToCartAnimator.fly(
+        context: context,
+        startKey: _cartController.imageKey,
+        cartKey: _cartController.cartKey,
+        imageUrl: preview.displayImageUrl ?? '',
+        onComplete: _cartController.animateCart,
+      );
+    } else {
+      _cartController.animateCart();
+    }
 
     final ctx = Get.context;
     if (ctx != null) {
       Utils().showToast(
         context: ctx,
         title: "Success",
-        message: "Order saved to cart successfully",
+        message: entries.length == 1
+            ? "Order saved to cart successfully"
+            : "${entries.length} items saved to cart successfully",
         isSuccess: true,
       );
     }
@@ -81,6 +127,8 @@ class _SubCategoryDetailViewState extends State<SubCategoryDetailView> {
   @override
   Widget build(BuildContext context) {
     final subName = _args.subCategory.subCategoryName ?? "Product Detail";
+    final preview = _previewItem;
+    final hasSelection = _selectedIndices.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.brandRed,
@@ -146,17 +194,21 @@ class _SubCategoryDetailViewState extends State<SubCategoryDetailView> {
               height: 52,
               child: FloatingActionButton.extended(
                 elevation: 4,
-                backgroundColor: AppColors.brandRed,
+                backgroundColor: hasSelection
+                    ? AppColors.brandRed
+                    : AppColors.brandRed.withValues(alpha: 0.45),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
-                onPressed: _handleAddToCart,
+                onPressed: hasSelection ? _handleAddToCart : null,
                 icon: const Icon(
                   Icons.shopping_bag_outlined,
                   color: Colors.white,
                 ),
                 label: CommonText(
-                  text: "Add to Cart",
+                  text: hasSelection && _selectedIndices.length > 1
+                      ? "Add ${_selectedIndices.length} to Cart"
+                      : "Add to Cart",
                   fontFamily: FontFamily.poppinsSemiBold,
                   color: Colors.white,
                   fontSize: 16,
@@ -183,15 +235,10 @@ class _SubCategoryDetailViewState extends State<SubCategoryDetailView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Center(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: _buildProductImage(_selectedItem),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
                     CommonText(
-                      text: _selectedItem.itemName ?? "--",
+                      text: hasSelection
+                          ? (preview?.itemName ?? "--")
+                          : subName,
                       fontFamily: FontFamily.poppinsBold,
                       fontSize: 20,
                       color: AppColors.black,
@@ -199,14 +246,14 @@ class _SubCategoryDetailViewState extends State<SubCategoryDetailView> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 16),
-                    _detailsCard(_selectedItem),
-                    const SizedBox(height: 16),
-                    SubCategoryListCard(
-                      subCategoryName: _subCategoryName,
-                      showChevron: false,
+                    Center(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: _selectedProductImage(preview),
+                      ),
                     ),
+                    const SizedBox(height: 20),
                     if (_args.items.length > 1) ...[
-                      const SizedBox(height: 20),
                       CommonText(
                         text: "Select Variant",
                         fontFamily: FontFamily.poppinsSemiBold,
@@ -214,17 +261,17 @@ class _SubCategoryDetailViewState extends State<SubCategoryDetailView> {
                         color: AppColors.black,
                       ),
                       const SizedBox(height: 10),
-                      ...List.generate(_args.items.length, (index) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _variantTile(
-                            item: _args.items[index],
-                            isSelected: index == _selectedIndex,
-                            onTap: () => _selectItem(index),
-                          ),
-                        );
-                      }),
                     ],
+                    ...List.generate(_args.items.length, (index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _variantTile(
+                          index: index,
+                          item: _args.items[index],
+                          isSelected: _selectedIndices.contains(index),
+                        ),
+                      );
+                    }),
                   ],
                 ),
               ),
@@ -232,130 +279,74 @@ class _SubCategoryDetailViewState extends State<SubCategoryDetailView> {
     );
   }
 
-  Widget _buildProductImage(ItemListData item) {
-    final imageUrl = item.displayImageUrl?.trim();
-    if (imageUrl != null && imageUrl.isNotEmpty) {
-      return Image.network(
-        imageUrl,
-        key: _cartController.imageKey,
-        width: 240,
-        height: 240,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => CatalogImagePlaceholder(
-          key: _cartController.imageKey,
-          width: 240,
-          height: 240,
-        ),
-      );
-    }
-    return CatalogImagePlaceholder(
+  Widget _selectedProductImage(ItemListData? item) {
+    final imageUrl = item?.displayImageUrl?.trim();
+
+    return SizedBox(
       key: _cartController.imageKey,
       width: 240,
       height: 240,
+      child: imageUrl != null && imageUrl.isNotEmpty
+          ? Image.network(
+              imageUrl,
+              width: 240,
+              height: 240,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const CatalogImagePlaceholder(
+                width: 240,
+                height: 240,
+              ),
+            )
+          : const CatalogImagePlaceholder(
+              width: 240,
+              height: 240,
+            ),
     );
   }
 
-  Widget _detailsCard(ItemListData item) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F8F8),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFFDE8E8)),
-      ),
-      child: Column(
-        children: [
-          _detailRow("Item Code", item.itemCode),
-          _detailRow("Brand", item.brandName),
-          _detailRow("Category", item.category),
-          _detailRow("Unit Code", item.unitCode),
-          _detailRow("Sales Discount", item.salesDiscountPER?.toString()),
-          _detailRow("Dis. Price", item.discount?.toString()),
-          _detailRow(
-            "Sale Price",
-            item.price?.toString(),
-            valueColor: AppColors.brandRed,
-            valueFont: FontFamily.poppinsBold,
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              CommonText(
-                text: "Qty",
-                fontFamily: FontFamily.poppinsRegular,
-                fontSize: 15,
-                color: Colors.black87,
-              ),
-              Obx(
-                () => Container(
-                  height: 40,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: AppColors.brandRed,
-                      width: 1.5,
-                    ),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      dropdownColor: Colors.white,
-                      value: _cartController.qtyOptions.contains(
-                        _cartController.quantity.value,
-                      )
-                          ? _cartController.quantity.value
-                          : null,
-                      hint: const Text("Select"),
-                      items: _cartController.qtyOptions
-                          .map(
-                            (q) => DropdownMenuItem<int>(
-                              value: q,
-                              child: Text(
-                                q.toString(),
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          _cartController.setQuantity(value);
-                        }
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+  Widget _variantImage(ItemListData item) {
+    final imageUrl = item.displayImageUrl?.trim();
+
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      return Image.network(
+        imageUrl,
+        width: 72,
+        height: 72,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const CatalogImagePlaceholder(
+          width: 72,
+          height: 72,
+          showLabel: false,
+        ),
+      );
+    }
+
+    return const CatalogImagePlaceholder(
+      width: 72,
+      height: 72,
+      showLabel: false,
     );
   }
 
   Widget _variantTile({
+    required int index,
     required ItemListData item,
     required bool isSelected,
-    required VoidCallback onTap,
   }) {
-    final type = item.unitCode?.trim().isNotEmpty == true
-        ? item.unitCode!
-        : (_subCategoryName != "--" ? _subCategoryName : "--");
+    final unitCode = (item.unitCode ?? "").trim().isEmpty
+        ? "--"
+        : item.unitCode!.trim();
+    final qtyOptions = _qtyOptionsFor(index);
+    final selectedQty = _qtyByIndex[index] ?? qtyOptions.first;
 
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
-        onTap: onTap,
+        onTap: () => _toggleVariant(index),
         borderRadius: BorderRadius.circular(14),
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
@@ -364,7 +355,17 @@ class _SubCategoryDetailViewState extends State<SubCategoryDetailView> {
             ),
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: SizedBox(
+                  width: 72,
+                  height: 72,
+                  child: _variantImage(item),
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -374,68 +375,140 @@ class _SubCategoryDetailViewState extends State<SubCategoryDetailView> {
                       fontFamily: FontFamily.poppinsSemiBold,
                       fontSize: 14,
                       color: AppColors.black,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    CommonText(
-                      text: "Type: $type",
-                      fontFamily: FontFamily.poppinsRegular,
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
+                    Row(
+                      children: [
+                        CommonText(
+                          text: "₹ ${item.price ?? 0}",
+                          fontFamily: FontFamily.poppinsBold,
+                          fontSize: 15,
+                          color: AppColors.brandRed,
+                        ),
+                        const Spacer(),
+                        CommonText(
+                          text: "Sales Discount:",
+                          fontFamily: FontFamily.poppinsRegular,
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 4),
+                        CommonText(
+                          text: item.salesDiscountPER?.toString() ?? "0",
+                          fontFamily: FontFamily.poppinsSemiBold,
+                          fontSize: 12,
+                          color: AppColors.black,
+                        ),
+                      ],
                     ),
+                    if (isSelected) ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CommonText(
+                                  text: "Unit Code",
+                                  fontFamily: FontFamily.poppinsRegular,
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                                const SizedBox(height: 6),
+                                CommonText(
+                                  text: unitCode,
+                                  fontFamily: FontFamily.poppinsMedium,
+                                  fontSize: 14,
+                                  color: AppColors.black,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: 92,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                CommonText(
+                                  text: "Qty",
+                                  fontFamily: FontFamily.poppinsRegular,
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                                const SizedBox(height: 6),
+                                GestureDetector(
+                                  onTap: () {},
+                                  child: Container(
+                                    height: 40,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: AppColors.brandRed,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<int>(
+                                        isExpanded: true,
+                                        dropdownColor: Colors.white,
+                                        value: qtyOptions.contains(selectedQty)
+                                            ? selectedQty
+                                            : qtyOptions.first,
+                                        items: qtyOptions
+                                            .map(
+                                              (q) => DropdownMenuItem<int>(
+                                                value: q,
+                                                child: Text(
+                                                  q.toString(),
+                                                  style: const TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            _setVariantQty(index, value);
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
               if (isSelected)
-                const Icon(
-                  Icons.check_circle_rounded,
-                  color: AppColors.brandRed,
-                  size: 20,
+                const Padding(
+                  padding: EdgeInsets.only(left: 4),
+                  child: Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.brandRed,
+                    size: 20,
+                  ),
                 ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _detailRow(
-    String label,
-    String? value, {
-    Color? valueColor,
-    String? valueFont,
-  }) {
-    final resolvedColor = valueColor ?? AppColors.black;
-    final resolvedFont = valueFont ?? FontFamily.poppinsSemiBold;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 4,
-            child: CommonText(
-              text: "$label:",
-              fontFamily: FontFamily.poppinsRegular,
-              fontSize: 15,
-              color: Colors.black87,
-            ),
-          ),
-          Expanded(
-            flex: 5,
-            child: CommonText(
-              text: (value ?? "").trim().isEmpty ? "--" : value!.trim(),
-              fontFamily: resolvedFont,
-              fontSize: 16,
-              color: resolvedColor,
-              textAlign: TextAlign.end,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
       ),
     );
   }

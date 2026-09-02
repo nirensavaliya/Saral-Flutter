@@ -10,7 +10,7 @@ import 'package:saral/View/Screen/Sale Order/Service/sales_order_cart_service.da
 import 'package:saral/View/Screen/Sidemenu/Sidemenu.dart';
 import 'package:saral/View/Utils/App_Routes.dart';
 import 'package:saral/View/Widget/Common_AppBar.dart';
-import 'package:saral/View/Widget/catalog_image_placeholder.dart';
+import 'package:saral/View/Widget/catalog_grid_card.dart';
 import 'package:saral/View/Widget/Common_Text.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -37,6 +37,20 @@ class _AdminProductViewState extends State<AdminProductView> {
     _refreshCartCount();
     controller.loadCategoryListIfNeeded();
     controller.loadBrandListIfNeeded();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (controller.selectedSubCategory.value != null) return;
+      if (controller.selectedBrandData.value != null &&
+          controller.selectedCategory.value == null) {
+        return;
+      }
+      if (controller.subCategoryListData.isEmpty) {
+        controller.getSubCategoryList(
+          brandId: controller.selectedBrandData.value?.brandID,
+          categoryId: controller.selectedCategory.value?.categoryID,
+        );
+      }
+    });
   }
 
   @override
@@ -51,6 +65,7 @@ class _AdminProductViewState extends State<AdminProductView> {
 
   void _onScroll() {
     if (!_scrollController.hasClients) return;
+    if (controller.selectedSubCategory.value == null) return;
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       controller.itemListApi(loadMore: true);
@@ -288,7 +303,13 @@ class _AdminProductViewState extends State<AdminProductView> {
               final category = controller.selectedCategory.value;
               final brand = controller.selectedBrandData.value;
               final sub = controller.selectedSubCategory.value;
+              final showingSubCategories =
+                  sub == null && !(brand != null && category == null);
+              if (showingSubCategories) {
+                return const SizedBox.shrink();
+              }
               final title = _productsTitle(category, brand, sub);
+              final isLoading = controller.isItemListLoading.value;
               return Row(
                 children: [
                   Expanded(
@@ -300,11 +321,9 @@ class _AdminProductViewState extends State<AdminProductView> {
                     ),
                   ),
                   CommonText(
-                    text: controller.isItemListLoading.value
+                    text: isLoading
                         ? ""
-                        : (category != null && sub == null)
-                            ? "${controller.subCategoryListData.length} sub categories"
-                            : "${controller.displayedProductItems.length} items",
+                        : "${controller.displayedProductItems.length} items",
                     fontFamily: FontFamily.poppinsMedium,
                     fontSize: 12,
                     color: Colors.grey,
@@ -315,22 +334,31 @@ class _AdminProductViewState extends State<AdminProductView> {
             const SizedBox(height: 10),
             Expanded(
               child: Obx(() {
-                if (controller.isItemListLoading.value) {
-                  return _productGridShimmer();
-                }
                 final hasBrand =
                     controller.selectedBrandData.value != null;
                 final hasCategory =
                     controller.selectedCategory.value != null;
                 final hasSubCategory =
                     controller.selectedSubCategory.value != null;
+                final showingSubCategories =
+                    !hasSubCategory && !(hasBrand && !hasCategory);
+
+                if (showingSubCategories &&
+                    controller.isGetSubCategory.value &&
+                    controller.subCategoryListData.isEmpty) {
+                  return _productGridShimmer();
+                }
+                if (!showingSubCategories &&
+                    controller.isItemListLoading.value) {
+                  return _productGridShimmer();
+                }
                 if (hasBrand && !hasCategory) {
                   return _catalogMessage(
                     icon: Icons.grid_view_rounded,
                     message: "Please select category",
                   );
                 }
-                if (hasCategory && !hasSubCategory) {
+                if (showingSubCategories) {
                   return _adminSubCategoryList();
                 }
                 final data = controller.displayedProductItems;
@@ -379,7 +407,7 @@ class _AdminProductViewState extends State<AdminProductView> {
                       return _productCardShimmer();
                     }
                     final model = data[index];
-                    return _adminCatalogGridCard(
+                    return CatalogGridCard(
                       imageUrl: model.displayImageUrl,
                       title: model.itemName ?? "",
                       priceText: "₹ ${model.price ?? 0}",
@@ -481,9 +509,6 @@ class _AdminProductViewState extends State<AdminProductView> {
         );
       }
 
-      final brand = controller.selectedBrandData.value?.brandName;
-      final category = controller.selectedCategory.value?.categoryName;
-
       return GridView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.only(bottom: 90),
@@ -492,107 +517,19 @@ class _AdminProductViewState extends State<AdminProductView> {
           crossAxisCount: 2,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 0.72,
+          childAspectRatio: 0.78,
         ),
         itemBuilder: (context, index) {
           final item = items[index];
-          return _adminCatalogGridCard(
+          return CatalogGridCard(
             imageUrl: item.imageUrl,
             title: item.subCategoryName ?? "--",
-            brand: brand,
-            category: category,
-            subCategory: item.subCategoryName,
+            showDetails: false,
             onTap: () => controller.onSubCategoryChanged(item),
           );
         },
       );
     });
-  }
-
-  Widget _adminCatalogGridCard({
-    required String? imageUrl,
-    required String title,
-    String? priceText,
-    String? brand,
-    String? category,
-    String? subCategory,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                color: const Color(0xffF3F4F6),
-                child: buildCatalogNetworkImage(imageUrl: imageUrl),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CommonText(
-                    text: title,
-                    fontFamily: FontFamily.poppinsSemiBold,
-                    fontSize: 13,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    color: Colors.black87,
-                  ),
-                  if (priceText != null) ...[
-                    const SizedBox(height: 4),
-                    CommonText(
-                      text: priceText,
-                      fontFamily: FontFamily.poppinsBold,
-                      fontSize: 14,
-                      color: AppColors.brandRed,
-                    ),
-                  ],
-                  const SizedBox(height: 4),
-                  CommonLabelValueText(
-                    label: "Brand",
-                    value: brand,
-                    fontSize: 12,
-                    valueColor: AppColors.brandRed,
-                  ),
-                  const SizedBox(height: 2),
-                  CommonLabelValueText(
-                    label: "Category",
-                    value: category,
-                    fontSize: 12,
-                    valueColor: AppColors.brandRed,
-                  ),
-                  const SizedBox(height: 2),
-                  CommonLabelValueText(
-                    label: "Sub Category",
-                    value: subCategory,
-                    fontSize: 12,
-                    valueColor: AppColors.brandRed,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   String _productsTitle(

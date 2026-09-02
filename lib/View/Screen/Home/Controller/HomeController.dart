@@ -167,7 +167,10 @@ class HomeController extends GetxController {
     await loadGstTaxList();
     apiOfferImageMessage();
     await loadBrandListIfNeeded();
-    itemListApi();
+    await getSubCategoryList(
+      brandId: selectedBrandData.value?.brandID,
+      categoryId: selectedCategory.value?.categoryID,
+    );
   }
 
   Future<void> loadGstTaxList() async {
@@ -214,7 +217,10 @@ class HomeController extends GetxController {
 
     if (scrollController.position.pixels >=
         scrollController.position.maxScrollExtent - 200) {
-      itemListApi(loadMore: true);
+      if (selectedSubCategory.value != null ||
+          productSearchQuery.value.trim().isNotEmpty) {
+        itemListApi(loadMore: true);
+      }
     }
   }
 
@@ -355,14 +361,13 @@ class HomeController extends GetxController {
     selectedSubCategory.value = null;
     subCategoryListData.clear();
     _resetPaging();
-    isItemListLoading.value = true;
+    isItemListLoading.value = false;
 
     _showAppLoader();
     try {
       if (value.brandID != null) {
         await getCategoryList(brandId: value.brandID);
       }
-      await itemListApi(force: true);
     } finally {
       _hideAppLoader();
     }
@@ -377,12 +382,12 @@ class HomeController extends GetxController {
     categoryListData.clear();
     subCategoryListData.clear();
     _resetPaging();
-    isItemListLoading.value = true;
+    isItemListLoading.value = false;
 
     _showAppLoader();
     try {
       await getBrandList();
-      await itemListApi(force: true);
+      await getSubCategoryList();
     } finally {
       _hideAppLoader();
     }
@@ -504,14 +509,15 @@ class HomeController extends GetxController {
     showAllCategories.value = false;
     subCategoryListData.clear();
     _resetPaging();
-    isItemListLoading.value = true;
+    isItemListLoading.value = false;
 
     _showAppLoader();
     try {
       if (selectedBrandData.value?.brandID != null) {
         await getCategoryList(brandId: selectedBrandData.value!.brandID);
+      } else {
+        await getSubCategoryList();
       }
-      await itemListApi(force: true);
     } finally {
       _hideAppLoader();
     }

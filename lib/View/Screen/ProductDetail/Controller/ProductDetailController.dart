@@ -33,14 +33,16 @@ class ProductDetailController extends GetxController
     ).animate(CurvedAnimation(parent: bounceController, curve: Curves.easeOut));
   }
 
-  void initQtyOptions(ItemListData? item) {
-    // null / 0 → normal qty: 1, 2, 3, ...
-    // e.g. 5 → 5, 10, 15, ...
+  static List<int> qtyOptionsFor(ItemListData? item) {
     final interval = item?.orderQtyInterval;
     final int step = (interval == null || interval < 1) ? 1 : interval;
+    return List.generate(20, (i) => step * (i + 1));
+  }
+
+  void initQtyOptions(ItemListData? item) {
     qtyOptions
       ..clear()
-      ..addAll(List.generate(20, (i) => step * (i + 1)));
+      ..addAll(qtyOptionsFor(item));
     quantity.value = qtyOptions.first;
   }
 
@@ -54,8 +56,54 @@ class ProductDetailController extends GetxController
   }
 
   /// Same calculation flow as Sale Order `calculateGstAndDiscountForSelectedItems`.
-  Future<void> addProductToCart(ItemListData item) async {
-    final int qty = quantity.value;
+  Future<void> addProductToCart(ItemListData item, {int? qty}) async {
+    await addProductsToCart([
+      (item: item, qty: qty ?? quantity.value),
+    ]);
+  }
+
+  Future<void> addProductsToCart(
+    List<({ItemListData item, int qty})> entries,
+  ) async {
+    if (entries.isEmpty) return;
+
+    final detailsList = <SaleOrderDetails>[];
+    double totalAmt = 0;
+    double discountTotal = 0;
+    double cGstTotal = 0;
+    double sGstTotal = 0;
+    double iGstTotal = 0;
+    double netTotal = 0;
+
+    for (final entry in entries) {
+      final details = _buildSaleOrderDetails(entry.item, entry.qty);
+      detailsList.add(details);
+      totalAmt += (entry.item.price ?? 0) * entry.qty;
+      discountTotal += details.totalDiscount ?? 0;
+      cGstTotal += details.cgstAmount ?? 0;
+      sGstTotal += details.sgstAmount ?? 0;
+      iGstTotal += details.igstAmount ?? 0;
+      netTotal += details.netAmount ?? 0;
+    }
+
+    await SalesOrderCartService.save(
+      items: detailsList,
+      total: totalAmt.toStringAsFixed(2),
+      discountTotal: discountTotal.toStringAsFixed(2),
+      cGstTotal: cGstTotal.toStringAsFixed(2),
+      sGstTotal: sGstTotal.toStringAsFixed(2),
+      iGstTotal: iGstTotal.toStringAsFixed(2),
+      totalItem: detailsList.length.toString(),
+      netTotal: netTotal.toStringAsFixed(2),
+      customerName: "Product Cart",
+    );
+
+    if (Get.isRegistered<AddToCartController>()) {
+      Get.find<AddToCartController>().loadCarts();
+    }
+  }
+
+  SaleOrderDetails _buildSaleOrderDetails(ItemListData item, int qty) {
     final double itemPrice =
         double.tryParse(item.price?.toString() ?? "0") ?? 0;
     final double discountPercent = double.tryParse(
@@ -63,7 +111,6 @@ class ProductDetailController extends GetxController
         ) ??
         0;
 
-    // Prefer mapped gstTaxName; fallback lookup by gstCodeId.
     final String? gstTaxName = (item.gstTaxName != null &&
             item.gstTaxName!.trim().isNotEmpty)
         ? item.gstTaxName
@@ -87,7 +134,7 @@ class ProductDetailController extends GetxController
         (itemNetPrice + cgstPerUnit + sgstPerUnit) * qty;
     final double itemTaxablePrice = itemGrossAmount - lineDiscount;
 
-    final details = SaleOrderDetails(
+    return SaleOrderDetails(
       itemId: item.itemid,
       itemName: item.itemName,
       unit: item.unitCode,
@@ -108,24 +155,6 @@ class ProductDetailController extends GetxController
       netAmount: double.parse(itemNetAmount.toStringAsFixed(2)),
       grossAmount: double.parse(itemGrossAmount.toStringAsFixed(2)),
     );
-
-    final double totalAmt = itemPrice * qty;
-    await SalesOrderCartService.save(
-      items: [details],
-      total: totalAmt.toStringAsFixed(2),
-      discountTotal: lineDiscount.toStringAsFixed(2),
-      cGstTotal: lineCgst.toStringAsFixed(2),
-      sGstTotal: lineSgst.toStringAsFixed(2),
-      iGstTotal: lineIgst.toStringAsFixed(2),
-      totalItem: "1",
-      netTotal: itemNetAmount.toStringAsFixed(2),
-      customerName: "Product Cart",
-    );
-
-    // Refresh Home cart badge without opening Cart screen.
-    if (Get.isRegistered<AddToCartController>()) {
-      Get.find<AddToCartController>().loadCarts();
-    }
   }
 
   double _parseGstPercent(String? gstTaxName) {

@@ -10,7 +10,8 @@ import 'package:saral/View/Screen/Home/Model/GetReportItemListModel.dart';
 import 'package:saral/View/Screen/Home/Model/subCategoryListModel.dart';
 import 'package:saral/View/Screen/Sale Order/Model/brand_list_model.dart';
 import 'package:saral/View/Utils/App_Routes.dart';
-import 'package:saral/View/Widget/sub_category_list_card.dart';
+import 'package:saral/View/Widget/catalog_grid_card.dart';
+import 'package:saral/View/Widget/catalog_image_placeholder.dart';
 import 'package:saral/View/Widget/Common_Text.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -145,7 +146,8 @@ class HomeView extends GetView<HomeController> {
                         ],
                       ),
                       const SizedBox(width: 8),
-                      _headerIconButton(
+                      if (isLoggedIn)
+                        _headerIconButton(
                         icon: Icons.logout_rounded,
                         onTap: _showLogoutDialog,
                       ),
@@ -292,9 +294,6 @@ class HomeView extends GetView<HomeController> {
                     controller.selectedCategory.value == null) {
                   return _allCategoriesGrid(controller);
                 }
-                if (controller.isItemListLoading.value) {
-                  return _productGridShimmer();
-                }
                 final hasBrand =
                     controller.selectedBrandData.value != null;
                 final hasCategory =
@@ -303,6 +302,15 @@ class HomeView extends GetView<HomeController> {
                     controller.selectedSubCategory.value != null;
                 final showAllBrands = controller.showAllBrands.value;
                 final showAllCategories = controller.showAllCategories.value;
+                final searching = controller.showProductSearchField.value;
+                final hasSearchQuery =
+                    controller.productSearchQuery.value.trim().isNotEmpty;
+                final showingSubCategories = !hasSubCategory &&
+                    !(hasBrand &&
+                        !hasCategory &&
+                        !showAllBrands &&
+                        !showAllCategories);
+
                 if (hasBrand &&
                     !hasCategory &&
                     !showAllBrands &&
@@ -312,12 +320,26 @@ class HomeView extends GetView<HomeController> {
                     message: "Please select category",
                   );
                 }
-                if (hasCategory && !hasSubCategory) {
+                if (showingSubCategories) {
+                  if (controller.isGetSubCategory.value &&
+                      controller.subCategoryListData.isEmpty) {
+                    return _subCategoryGridShimmer();
+                  }
+                  return _subCategoryListPanel(controller);
+                }
+                if ((searching || hasSubCategory) &&
+                    controller.isItemListLoading.value) {
+                  return _productGridShimmer();
+                }
+                if (!searching && !hasSubCategory) {
+                  if (controller.isGetSubCategory.value &&
+                      controller.subCategoryListData.isEmpty) {
+                    return _subCategoryGridShimmer();
+                  }
                   return _subCategoryListPanel(controller);
                 }
                 final data = controller.displayedProductItems;
-                final isSearching =
-                    controller.productSearchQuery.value.trim().isNotEmpty;
+                final isSearching = hasSearchQuery;
                 if (data.isEmpty) {
                   return Center(
                     child: Column(
@@ -942,25 +964,6 @@ class HomeView extends GetView<HomeController> {
 
   Widget _subCategoryListPanel(HomeController controller) {
     return Obx(() {
-      if (controller.isGetSubCategory.value &&
-          controller.subCategoryListData.isEmpty) {
-        return ListView.separated(
-          itemCount: 4,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (_, __) => Shimmer.fromColors(
-            baseColor: Colors.grey.shade300,
-            highlightColor: Colors.grey.shade100,
-            child: Container(
-              height: 88,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-          ),
-        );
-      }
-
       final items = controller.subCategoryListData;
       if (items.isEmpty) {
         return Center(
@@ -972,14 +975,23 @@ class HomeView extends GetView<HomeController> {
         );
       }
 
-      return ListView.separated(
+      return GridView.builder(
+        controller: controller.scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 12),
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 0.78,
+        ),
         itemBuilder: (context, index) {
           final item = items[index];
-          return SubCategoryListCard.fromData(
-            item: item,
+          return CatalogGridCard(
+            imageUrl: item.imageUrl,
+            title: item.subCategoryName ?? "--",
+            showDetails: false,
             onTap: () => controller.onSubCategoryChanged(item),
           );
         },
@@ -987,7 +999,34 @@ class HomeView extends GetView<HomeController> {
     });
   }
 
+  Widget _subCategoryGridShimmer() {
+    return GridView.builder(
+      itemCount: 6,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.78,
+      ),
+      itemBuilder: (_, __) => Shimmer.fromColors(
+        baseColor: Colors.grey.shade300,
+        highlightColor: Colors.grey.shade100,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _productListCard(ItemListData model) {
+    final typeLabel = (model.unitCode ?? "").trim().isEmpty
+        ? "--"
+        : model.unitCode!.trim();
+
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(14),
@@ -998,106 +1037,119 @@ class HomeView extends GetView<HomeController> {
         borderRadius: BorderRadius.circular(14),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: Colors.grey.shade300),
           ),
+          clipBehavior: Clip.antiAlias,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CommonText(
-                text: "Product Name",
-                fontFamily: FontFamily.poppinsRegular,
-                fontSize: 12,
-                color: Colors.grey.shade600,
+              SizedBox(
+                width: double.infinity,
+                height: 160,
+                child: buildCatalogNetworkImage(
+                  imageUrl: model.displayImageUrl,
+                ),
               ),
-              const SizedBox(height: 4),
-              CommonText(
-                text: model.itemName ?? "--",
-                fontFamily: FontFamily.poppinsSemiBold,
-                fontSize: 16,
-                color: AppColors.black,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CommonText(
+                      text: "Product Name",
+                      fontFamily: FontFamily.poppinsRegular,
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(height: 4),
+                    CommonText(
+                      text: model.itemName ?? "--",
+                      fontFamily: FontFamily.poppinsSemiBold,
+                      fontSize: 16,
+                      color: AppColors.black,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
                       children: [
-                        CommonText(
-                          text: "Type",
-                          fontFamily: FontFamily.poppinsRegular,
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CommonText(
+                                text: "Type",
+                                fontFamily: FontFamily.poppinsRegular,
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF4F4F4),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border:
+                                      Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: CommonText(
+                                  text: typeLabel,
+                                  fontFamily: FontFamily.poppinsMedium,
+                                  fontSize: 14,
+                                  color: AppColors.black,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 6),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF4F4F4),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: CommonText(
-                            text: (model.subCategory ?? model.unitCode ?? "--")
-                                .trim()
-                                .isEmpty
-                                ? "--"
-                                : (model.subCategory ?? model.unitCode)!,
-                            fontFamily: FontFamily.poppinsMedium,
-                            fontSize: 14,
-                            color: AppColors.black,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CommonText(
+                                text: "Sale Price",
+                                fontFamily: FontFamily.poppinsRegular,
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF4F4F4),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border:
+                                      Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: CommonText(
+                                  text: "₹ ${model.price ?? 0}",
+                                  fontFamily: FontFamily.poppinsBold,
+                                  fontSize: 14,
+                                  color: AppColors.brandRed,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CommonText(
-                          text: "Sale Price",
-                          fontFamily: FontFamily.poppinsRegular,
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                        const SizedBox(height: 6),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF4F4F4),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: CommonText(
-                            text: "₹ ${model.price ?? 0}",
-                            fontFamily: FontFamily.poppinsBold,
-                            fontSize: 14,
-                            color: AppColors.brandRed,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),

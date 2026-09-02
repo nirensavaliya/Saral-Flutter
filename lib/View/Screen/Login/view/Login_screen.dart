@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -284,6 +285,8 @@ class LoginScreen extends StatelessWidget {
 
 
   Widget _buildOtpUi(BuildContext context) {
+     const int otpLength = kDebugMode ? 5 : 6;
+
     final pinTheme = PinTheme(
       width: 54,
       height: 58,
@@ -379,7 +382,7 @@ class LoginScreen extends StatelessWidget {
                       const SizedBox(height: 12),
                       Pinput(
                         controller: loginController.otpController,
-                        length: 6,
+                        length: otpLength,
                         keyboardType: TextInputType.number,
                         separatorBuilder: (index) => const SizedBox(width: 10),
                         onChanged: (value) => loginController.otp = value,
@@ -450,7 +453,7 @@ class LoginScreen extends StatelessWidget {
                         onTap: () {
                           final otp =
                               loginController.otpController.text.trim();
-                          if (otp.isEmpty || otp.length < 6) {
+                          if (otp.isEmpty || otp.length < otpLength) {
                             Utils().showToast(
                               context: context,
                               title: "Error",
