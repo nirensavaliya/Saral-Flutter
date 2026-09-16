@@ -1,4 +1,4 @@
-package com.saral.saral
+package com.app.saral
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:saral/Common/Global.dart';
 import 'package:saral/Common/Tost.dart';
 import 'package:saral/View/Constant/App_Colors.dart';
 import 'package:saral/View/Constant/App_font.dart';
@@ -378,31 +379,33 @@ class _SubCategoryDetailViewState extends State<SubCategoryDetailView> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        CommonText(
-                          text: "₹ ${item.price ?? 0}",
-                          fontFamily: FontFamily.poppinsBold,
-                          fontSize: 15,
-                          color: AppColors.brandRed,
-                        ),
-                        const Spacer(),
-                        CommonText(
-                          text: "Sales Discount:",
-                          fontFamily: FontFamily.poppinsRegular,
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                        const SizedBox(width: 4),
-                        CommonText(
-                          text: item.salesDiscountPER?.toString() ?? "0",
-                          fontFamily: FontFamily.poppinsSemiBold,
-                          fontSize: 12,
-                          color: AppColors.black,
-                        ),
-                      ],
-                    ),
+                    if (canShowPrice) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          CommonText(
+                            text: "₹ ${item.price ?? 0}",
+                            fontFamily: FontFamily.poppinsBold,
+                            fontSize: 15,
+                            color: AppColors.brandRed,
+                          ),
+                          const Spacer(),
+                          CommonText(
+                            text: "Sales Discount:",
+                            fontFamily: FontFamily.poppinsRegular,
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 4),
+                          CommonText(
+                            text: item.salesDiscountPER?.toString() ?? "0",
+                            fontFamily: FontFamily.poppinsSemiBold,
+                            fontSize: 12,
+                            color: AppColors.black,
+                          ),
+                        ],
+                      ),
+                    ],
                     if (isSelected) ...[
                       const SizedBox(height: 10),
                       Row(

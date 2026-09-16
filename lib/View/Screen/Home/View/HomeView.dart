@@ -159,7 +159,7 @@ class HomeView extends GetView<HomeController> {
                     return const SizedBox(height: 8);
                   }
                   return Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
                     child: _homeBanner(controller),
                   );
                 }),
@@ -246,7 +246,7 @@ class HomeView extends GetView<HomeController> {
       ),
       clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -256,7 +256,6 @@ class HomeView extends GetView<HomeController> {
                 return const SizedBox.shrink();
               }
               final hasBrand = controller.selectedBrandData.value != null;
-              final hasCategory = controller.selectedCategory.value != null;
               final showAllBrands = controller.showAllBrands.value;
               final showAllCategories = controller.showAllCategories.value;
 
@@ -266,7 +265,7 @@ class HomeView extends GetView<HomeController> {
                   child: _brandsSection(controller),
                 );
               }
-              if (hasBrand && !hasCategory && !showAllCategories) {
+              if (hasBrand && !showAllCategories) {
                 return Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: _categoriesSection(controller),
@@ -274,7 +273,7 @@ class HomeView extends GetView<HomeController> {
               }
               return const SizedBox.shrink();
             }),
-            const SizedBox(height: 12),
+            const SizedBox(height: 0),
             Expanded(
               child: NotificationListener<ScrollNotification>(
                 onNotification: (notification) {
@@ -287,11 +286,13 @@ class HomeView extends GetView<HomeController> {
                 },
                 child: Obx(() {
                 if (controller.showAllBrands.value &&
-                    controller.selectedBrandData.value == null) {
+                    controller.selectedBrandData.value == null &&
+                    !controller.showProductSearchField.value) {
                   return _allBrandsGrid(controller);
                 }
                 if (controller.showAllCategories.value &&
-                    controller.selectedCategory.value == null) {
+                    controller.selectedCategory.value == null &&
+                    !controller.showProductSearchField.value) {
                   return _allCategoriesGrid(controller);
                 }
                 final hasBrand =
@@ -305,6 +306,68 @@ class HomeView extends GetView<HomeController> {
                 final searching = controller.showProductSearchField.value;
                 final hasSearchQuery =
                     controller.productSearchQuery.value.trim().isNotEmpty;
+
+                // Search mode: same grid card UI as catalog
+                if (searching) {
+                  if (!hasSearchQuery) {
+                    return _catalogMessage(
+                      icon: Icons.search_rounded,
+                      message: "Type to search products",
+                    );
+                  }
+                  if (controller.isItemListLoading.value &&
+                      controller.itemList.isEmpty) {
+                    return _subCategoryGridShimmer();
+                  }
+                  final data = controller.displayedProductItems;
+                  if (data.isEmpty) {
+                    return _catalogMessage(
+                      icon: Icons.search_off_outlined,
+                      message: "No matching product found",
+                    );
+                  }
+                  return GridView.builder(
+                    controller: controller.scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(top: 8, bottom: 12),
+                    itemCount:
+                        data.length + (controller.isLoadingMore.value ? 1 : 0),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.78,
+                    ),
+                    itemBuilder: (context, index) {
+                      if (index == data.length) {
+                        return const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.brandRed,
+                            ),
+                          ),
+                        );
+                      }
+                      final item = data[index];
+                      return CatalogGridCard(
+                        imageUrl: item.displayImageUrl,
+                        title: item.itemName ?? "--",
+                        showDetails: false,
+                        onTap: () {
+                          Get.toNamed(
+                            AppRoutes.productDetailViewScreen,
+                            arguments: item,
+                          );
+                        },
+                      );
+                    },
+                  );
+                }
+
                 final showingSubCategories = !hasSubCategory &&
                     !(hasBrand &&
                         !hasCategory &&
@@ -327,11 +390,11 @@ class HomeView extends GetView<HomeController> {
                   }
                   return _subCategoryListPanel(controller);
                 }
-                if ((searching || hasSubCategory) &&
+                if (hasSubCategory &&
                     controller.isItemListLoading.value) {
                   return _productGridShimmer();
                 }
-                if (!searching && !hasSubCategory) {
+                if (!hasSubCategory) {
                   if (controller.isGetSubCategory.value &&
                       controller.subCategoryListData.isEmpty) {
                     return _subCategoryGridShimmer();
@@ -339,24 +402,19 @@ class HomeView extends GetView<HomeController> {
                   return _subCategoryListPanel(controller);
                 }
                 final data = controller.displayedProductItems;
-                final isSearching = hasSearchQuery;
                 if (data.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          isSearching
-                              ? Icons.search_off_outlined
-                              : Icons.inventory_2_outlined,
+                          Icons.inventory_2_outlined,
                           size: 48,
                           color: Colors.grey.shade400,
                         ),
                         const SizedBox(height: 10),
                         CommonText(
-                          text: isSearching
-                              ? "No matching product found"
-                              : "No Product Found",
+                          text: "No Product Found",
                           fontFamily: FontFamily.poppinsSemiBold,
                           color: Colors.grey,
                         ),
@@ -417,80 +475,66 @@ class HomeView extends GetView<HomeController> {
           expanded ||
           searching;
 
-      final title = [
+      final selectedName = [
         if (brand != null) brand.brandName,
         if (selected != null) selected.categoryName,
         if (sub != null) sub.subCategoryName,
       ].whereType<String>().where((e) => e.trim().isNotEmpty).join(" • ");
 
-      final headerTitle = title.isNotEmpty
-          ? title
-          : (showAllBrands
-              ? "Brands"
-              : (showAll ? "Categories" : "Brands"));
+      final headerTitle = selectedName.isNotEmpty
+          ? selectedName
+          : (showAll ? "Category" : "Brands");
 
-      return Row(
+      final showCategoryLabel = brand != null || showAll;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (showBack) ...[
-            Material(
-              color: AppColors.brandRed.withValues(alpha: 0.1),
-              shape: const CircleBorder(),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: () => _onCatalogBack(controller),
-                child: const Padding(
-                  padding: EdgeInsets.all(8),
-                  child: Icon(
-                    Icons.arrow_back_rounded,
-                    size: 20,
-                    color: AppColors.brandRed,
+          Row(
+            children: [
+              if (showBack) ...[
+                Material(
+                  color: AppColors.brandRed.withValues(alpha: 0.1),
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => _onCatalogBack(controller),
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Icon(
+                        Icons.arrow_back_rounded,
+                        size: 20,
+                        color: AppColors.brandRed,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 10),
-          ],
-          if (searching)
-            Expanded(child: _homeSearchField(controller))
-          else
-            Expanded(
-              child: CommonText(
-                text: headerTitle,
-                fontFamily: FontFamily.poppinsBold,
-                fontSize: 18,
-                color: AppColors.black,
-              ),
-            ),
-          const SizedBox(width: 8),
-          _homeHeaderIcons(controller),
-          if (!searching &&
-              brand == null &&
-              !showAll &&
-              !showAllBrands) ...[
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () => controller.openAllBrands(),
-              child: CommonText(
-                text: "VIEW ALL",
-                fontFamily: FontFamily.jetBrainMedium,
-                fontSize: 13,
-                color: AppColors.brandRed,
-              ),
-            ),
-          ],
-          if (!searching &&
-              brand != null &&
-              selected == null &&
-              !showAll) ...[
-            const SizedBox(width: 8),
-            GestureDetector(
-              onTap: () => controller.openAllCategories(),
-              child: CommonText(
-                text: "VIEW ALL",
-                fontFamily: FontFamily.jetBrainMedium,
-                fontSize: 13,
-                color: AppColors.brandRed,
-              ),
+                const SizedBox(width: 10),
+              ],
+              if (searching)
+                Expanded(child: _homeSearchField(controller))
+              else
+                Expanded(
+                  child: CommonText(
+                    text: headerTitle,
+                    fontFamily: FontFamily.poppinsBold,
+                    fontSize: 18,
+                    color: AppColors.black,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              const SizedBox(width: 8),
+              _homeHeaderIcons(controller),
+            ],
+          ),
+          if (showCategoryLabel && !searching) ...[
+            const SizedBox(height: 6),
+            CommonText(
+              text: "Category",
+              fontFamily: FontFamily.poppinsMedium,
+              fontSize: 13,
+              color: const Color(0xFF6B7280),
             ),
           ],
         ],
@@ -581,7 +625,7 @@ class HomeView extends GetView<HomeController> {
       children: [
         _homeFilterIcon(controller),
         const SizedBox(width: 6),
-        _homeBrandIcon(controller),
+        // _homeBrandIcon(controller),
       ],
     );
   }
@@ -643,6 +687,8 @@ class HomeView extends GetView<HomeController> {
         controller: controller.productSearchController,
         focusNode: controller.productSearchFocusNode,
         onChanged: controller.onProductSearch,
+        textInputAction: TextInputAction.search,
+        onSubmitted: (_) => controller.submitProductSearch(),
         style: TextStyle(
           fontFamily: FontFamily.poppinsMedium,
           fontSize: 14,
@@ -883,11 +929,11 @@ class HomeView extends GetView<HomeController> {
       if (brands.isEmpty) return const SizedBox.shrink();
 
       return SizedBox(
-        height: 88,
+        height: 108,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: brands.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 18),
+          separatorBuilder: (_, __) => const SizedBox(width: 12),
           itemBuilder: (context, index) {
             final item = brands[index];
             return _circleChip(
@@ -927,6 +973,8 @@ class HomeView extends GetView<HomeController> {
         return _circleChip(
           imageUrl: item.imageUrl,
           title: item.categoryName ?? "",
+          isSelected:
+              controller.selectedCategory.value?.categoryID == item.categoryID,
           onTap: () => controller.onCategoryChanged(item),
         );
       },
@@ -935,25 +983,34 @@ class HomeView extends GetView<HomeController> {
 
   Widget _categoriesSection(HomeController controller) {
     return Obx(() {
+      final selectedId = controller.selectedCategory.value?.categoryID;
+      final selectedName = controller.selectedCategory.value?.categoryName;
+
       if (controller.isGetCategory.value &&
           controller.categoryListData.isEmpty) {
         return _horizontalChipShimmer();
       }
 
-      final categories = controller.categoryListData;
+      final categories = controller.categoryListData.toList();
       if (categories.isEmpty) return const SizedBox.shrink();
 
       return SizedBox(
-        height: 88,
+        height: 108,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
           itemCount: categories.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 18),
+          separatorBuilder: (_, __) => const SizedBox(width: 10),
           itemBuilder: (context, index) {
             final item = categories[index];
+            final isSelected = selectedId != null
+                ? selectedId == item.categoryID
+                : (selectedName != null &&
+                    selectedName == item.categoryName);
             return _circleChip(
               imageUrl: item.imageUrl,
               title: item.categoryName ?? "",
+              isSelected: isSelected,
               onTap: () => controller.onCategoryChanged(item),
             );
           },
@@ -1110,42 +1167,44 @@ class HomeView extends GetView<HomeController> {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              CommonText(
-                                text: "Sale Price",
-                                fontFamily: FontFamily.poppinsRegular,
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
-                              const SizedBox(height: 6),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 10,
+                        if (canShowPrice) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CommonText(
+                                  text: "Sale Price",
+                                  fontFamily: FontFamily.poppinsRegular,
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
                                 ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF4F4F4),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border:
-                                      Border.all(color: Colors.grey.shade300),
+                                const SizedBox(height: 6),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF4F4F4),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: Colors.grey.shade300),
+                                  ),
+                                  child: CommonText(
+                                    text: "₹ ${model.price ?? 0}",
+                                    fontFamily: FontFamily.poppinsBold,
+                                    fontSize: 14,
+                                    color: AppColors.brandRed,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                                child: CommonText(
-                                  text: "₹ ${model.price ?? 0}",
-                                  fontFamily: FontFamily.poppinsBold,
-                                  fontSize: 14,
-                                  color: AppColors.brandRed,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ],
@@ -1160,7 +1219,7 @@ class HomeView extends GetView<HomeController> {
 
   Widget _horizontalChipShimmer() {
     return SizedBox(
-      height: 88,
+      height: 108,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: 5,
@@ -1193,65 +1252,78 @@ class HomeView extends GetView<HomeController> {
     required VoidCallback onTap,
     bool isSelected = false,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 72,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFF4F3F8),
-                border: Border.all(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(
+          width: 72,
+          height: 108,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
                   color: isSelected
-                      ? AppColors.brandRed
-                      : const Color(0xFFE6BDB8),
-                  width: isSelected ? 2 : 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFE2292E).withValues(alpha: 0.30),
-                    blurRadius: 4,
-                    spreadRadius: 0,
-                    offset: const Offset(0, 4),
+                      ? const Color(0xFFFFE8E8)
+                      : const Color(0xFFF4F3F8),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.brandRed
+                        : const Color(0xFFD1D5DB),
+                    width: isSelected ? 2 : 1,
                   ),
-                ],
-              ),
-              child: ClipOval(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Image.network(
-                    imageUrl ?? "",
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => Icon(
-                      Icons.campaign_outlined,
-                      size: 24,
-                      color: Colors.grey.shade800,
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppColors.brandRed.withValues(alpha: 0.28),
+                            blurRadius: 5,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: ClipOval(
+                  child: Padding(
+                    padding: const EdgeInsets.all(9),
+                    child: Image.network(
+                      imageUrl ?? "",
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Icon(
+                        Icons.campaign_outlined,
+                        size: 22,
+                        color: isSelected
+                            ? AppColors.brandRed
+                            : Colors.grey.shade600,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: FontFamily.poppinsMedium,
-                fontSize: 12,
-                color: isSelected
-                    ? AppColors.brandRed
-                    : const Color(0xFF4B5563),
+              const SizedBox(height: 6),
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.clip,
+                softWrap: true,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: isSelected
+                      ? FontFamily.poppinsSemiBold
+                      : FontFamily.poppinsMedium,
+                  fontSize: 10,
+                  height: 1.2,
+                  color: isSelected
+                      ? AppColors.brandRed
+                      : const Color(0xFF6B7280),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

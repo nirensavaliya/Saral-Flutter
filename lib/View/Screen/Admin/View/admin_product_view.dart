@@ -65,7 +65,11 @@ class _AdminProductViewState extends State<AdminProductView> {
 
   void _onScroll() {
     if (!_scrollController.hasClients) return;
-    if (controller.selectedSubCategory.value == null) return;
+    final hasSearch =
+        controller.productSearchQuery.value.trim().isNotEmpty;
+    if (controller.selectedSubCategory.value == null && !hasSearch) {
+      return;
+    }
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       controller.itemListApi(loadMore: true);
@@ -300,6 +304,35 @@ class _AdminProductViewState extends State<AdminProductView> {
 
             const SizedBox(height: 14),
             Obx(() {
+              final searching =
+                  controller.showProductSearchField.value;
+              final hasSearchQuery =
+                  controller.productSearchQuery.value.trim().isNotEmpty;
+              if (searching) {
+                return Row(
+                  children: [
+                    Expanded(
+                      child: CommonText(
+                        text: hasSearchQuery
+                            ? "Search results"
+                            : "Search products",
+                        fontFamily: FontFamily.poppinsSemiBold,
+                        fontSize: 16,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    if (hasSearchQuery &&
+                        !controller.isItemListLoading.value)
+                      CommonText(
+                        text:
+                            "${controller.displayedProductItems.length} items",
+                        fontFamily: FontFamily.poppinsMedium,
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                  ],
+                );
+              }
               final category = controller.selectedCategory.value;
               final brand = controller.selectedBrandData.value;
               final sub = controller.selectedSubCategory.value;
@@ -334,6 +367,57 @@ class _AdminProductViewState extends State<AdminProductView> {
             const SizedBox(height: 10),
             Expanded(
               child: Obx(() {
+                final searching =
+                    controller.showProductSearchField.value;
+                final hasSearchQuery =
+                    controller.productSearchQuery.value.trim().isNotEmpty;
+
+                // Search mode — same catalog grid UI
+                if (searching) {
+                  if (!hasSearchQuery) {
+                    return _catalogMessage(
+                      icon: Icons.search_rounded,
+                      message: "Type to search products",
+                    );
+                  }
+                  if (controller.isItemListLoading.value &&
+                      controller.itemList.isEmpty) {
+                    return _productGridShimmer();
+                  }
+                  final data = controller.displayedProductItems;
+                  if (data.isEmpty) {
+                    return _catalogMessage(
+                      icon: Icons.search_off_outlined,
+                      message: "No matching product found",
+                    );
+                  }
+                  return GridView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.only(bottom: 90),
+                    itemCount: data.length +
+                        (controller.isLoadingMore.value ? 1 : 0),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.78,
+                    ),
+                    itemBuilder: (context, index) {
+                      if (index == data.length) {
+                        return _productCardShimmer();
+                      }
+                      final model = data[index];
+                      return CatalogGridCard(
+                        imageUrl: model.displayImageUrl,
+                        title: model.itemName ?? "--",
+                        showDetails: false,
+                        onTap: () => _openProductDetail(model),
+                      );
+                    },
+                  );
+                }
+
                 final hasBrand =
                     controller.selectedBrandData.value != null;
                 final hasCategory =
@@ -362,25 +446,19 @@ class _AdminProductViewState extends State<AdminProductView> {
                   return _adminSubCategoryList();
                 }
                 final data = controller.displayedProductItems;
-                final isSearching =
-                    controller.productSearchQuery.value.trim().isNotEmpty;
                 if (data.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          isSearching
-                              ? Icons.search_off_outlined
-                              : Icons.inventory_2_outlined,
+                          Icons.inventory_2_outlined,
                           size: 48,
                           color: Colors.grey.shade400,
                         ),
                         const SizedBox(height: 10),
                         CommonText(
-                          text: isSearching
-                              ? "No matching product found"
-                              : "No Product Found",
+                          text: "No Product Found",
                           fontFamily: FontFamily.poppinsSemiBold,
                           color: Colors.grey,
                         ),
@@ -393,10 +471,9 @@ class _AdminProductViewState extends State<AdminProductView> {
                   controller: _scrollController,
                   padding: const EdgeInsets.only(bottom: 90),
                   itemCount: data.length +
-                      (!isSearching && controller.isLoadingMore.value
-                          ? 1
-                          : 0),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      (controller.isLoadingMore.value ? 1 : 0),
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
@@ -562,6 +639,8 @@ class _AdminProductViewState extends State<AdminProductView> {
         controller: _searchController,
         autofocus: true,
         onChanged: controller.onProductSearch,
+        textInputAction: TextInputAction.search,
+        onSubmitted: (_) => controller.submitProductSearch(),
         style: TextStyle(
           fontFamily: FontFamily.poppinsMedium,
           fontSize: 15,

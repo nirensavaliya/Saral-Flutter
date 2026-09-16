@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:saral/Common/Global.dart';
 import 'package:saral/Common/Tost.dart';
 import 'package:saral/View/Constant/App_Colors.dart';
 import 'package:saral/View/Constant/App_font.dart';
@@ -202,17 +203,19 @@ class _ProductDetailViewState extends State<ProductDetailView> {
                     _detailRow("Brand", item?.brandName),
                     _detailRow("Category", item?.category),
                     // _detailRow("Unit Code", item?.unitCode),
-                    _detailRow(
-                      "Sales Discount",
-                      item?.salesDiscountPER?.toString(),
-                    ),
+                    if (canShowPrice)
+                      _detailRow(
+                        "Sales Discount",
+                        item?.salesDiscountPER?.toString(),
+                      ),
                     // _detailRow("Dis. Price", item?.discount?.toString()),
-                    _detailRow(
-                      "Sale Price",
-                      item?.price?.toString(),
-                      valueColor: AppColors.brandRed,
-                      valueFont: FontFamily.poppinsBold,
-                    ),
+                    if (canShowPrice)
+                      _detailRow(
+                        "Sale Price",
+                        item?.price?.toString(),
+                        valueColor: AppColors.brandRed,
+                        valueFont: FontFamily.poppinsBold,
+                      ),
                     const SizedBox(height: 4),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

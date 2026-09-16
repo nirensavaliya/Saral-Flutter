@@ -174,3 +174,10 @@ bool get isLoggedIn {
   final otp = GetStorageData.readString(GetStorageData.isOtpVerified);
   return token is String && token.isNotEmpty && otp == "true";
 }
+
+/// Price is visible only for Admin and Sales Person (Employee), not Customer.
+bool get canShowPrice {
+  final isAdmin = GetStorageData.readBoolean(GetStorageData.isAdmin);
+  final isEmployee = GetStorageData.readBoolean(GetStorageData.isEmployee);
+  return isAdmin || isEmployee;
+}

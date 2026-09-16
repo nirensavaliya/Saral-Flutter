@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 
 import 'package:carousel_slider/carousel_controller.dart';
@@ -55,6 +56,7 @@ class HomeController extends GetxController {
   final FocusNode productSearchFocusNode = FocusNode();
   final showProductSearchField = false.obs;
   final isCatalogFullScreen = false.obs;
+  Timer? _searchDebounce;
 
   bool get hideHomeBanner =>
       isCatalogFullScreen.value ||
@@ -77,20 +79,48 @@ class HomeController extends GetxController {
   }
 
   List<ItemListData> get displayedProductItems {
-    final q = productSearchQuery.value.trim().toLowerCase();
-    if (q.isEmpty) return itemList.toList();
-    return itemList
-        .where((e) => (e.itemName ?? '').toLowerCase().contains(q))
-        .toList();
+    // Search results come from API (`SearchText`); keep list as returned.
+    return itemList.toList();
   }
 
   void onProductSearch(String value) {
     productSearchQuery.value = value;
+    _searchDebounce?.cancel();
+
+    final query = value.trim();
+    if (query.isEmpty) {
+      itemList.clear();
+      _resetPaging();
+      isItemListLoading.value = false;
+      return;
+    }
+
+    _searchDebounce = Timer(const Duration(milliseconds: 450), () {
+      if (isClosed) return;
+      if (productSearchQuery.value.trim() != query) return;
+      itemListApi(force: true);
+    });
+  }
+
+  void submitProductSearch() {
+    _searchDebounce?.cancel();
+    final query = productSearchQuery.value.trim();
+    if (query.isEmpty) {
+      itemList.clear();
+      _resetPaging();
+      isItemListLoading.value = false;
+      return;
+    }
+    itemListApi(force: true);
   }
 
   void clearProductSearch() {
+    _searchDebounce?.cancel();
     productSearchController.clear();
     productSearchQuery.value = '';
+    itemList.clear();
+    _resetPaging();
+    isItemListLoading.value = false;
   }
 
   void toggleProductSearchField() {
@@ -108,6 +138,7 @@ class HomeController extends GetxController {
   void closeProductSearchField() {
     showProductSearchField.value = false;
     productSearchFocusNode.unfocus();
+    clearProductSearch();
   }
 
   final List<String> sliderImages = [
@@ -198,6 +229,7 @@ class HomeController extends GetxController {
   }
   @override
   void onClose() {
+    _searchDebounce?.cancel();
     scrollController.removeListener(_onScroll);
     scrollController.dispose();
     productSearchController.dispose();
@@ -394,11 +426,12 @@ class HomeController extends GetxController {
   }
 
   Future<void> onCategoryChanged(CategoryListData? value) async {
-    print("onCategoryChanged called");
-    print("Category = ${value?.categoryName}");
-    print("CategoryId = ${value?.categoryID}");
-
     if (value == null) return;
+    if (selectedCategory.value?.categoryID != null &&
+        value.categoryID != null &&
+        selectedCategory.value?.categoryID == value.categoryID) {
+      return;
+    }
 
     showAllCategories.value = false;
     selectedCategory.value = value;
@@ -406,15 +439,15 @@ class HomeController extends GetxController {
     subCategoryListData.clear();
     _resetPaging();
     isItemListLoading.value = false;
+    update();
 
-    _showAppLoader();
     try {
       await getSubCategoryList(
         categoryId: value.categoryID,
         brandId: selectedBrandData.value?.brandID,
       );
     } finally {
-      _hideAppLoader();
+      update();
     }
   }
 
