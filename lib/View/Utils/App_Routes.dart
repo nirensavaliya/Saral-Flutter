@@ -2,9 +2,11 @@ class AppRoutes {
   static const String splashScreen = "/SplashScreen";
   static const String loginScreen = "/LoginScreen";
   static const String homeScreen = "/Home";
+  static const String homeCatalogLegacyScreen = "/HomeCatalogLegacyView";
   static const String dashboardScreen = "/DashBoard";
   static const String productScreen = "/ProductScreen";
   static const String adminProductScreen = "/AdminProductView";
+  static const String adminProductListScreen = "/AdminProductListView";
   static const String productDetailViewScreen = "/ProductDetailView";
   static const String subCategoryDetailScreen = "/SubCategoryDetailView";
   static const String addToCartScreen = "/AddToCart";
@@ -23,4 +25,7 @@ class AppRoutes {
   static const String employeeHomeScreen = "/EmployeeHomeView";
   static const String promoMessageScreen = "/PromoMessageView";
   static const String showReportScreen = "/ShowReportView";
+  static const String teamMemberListScreen = "/TeamMemberListView";
+  static const String teamMemberFormScreen = "/TeamMemberFormView";
+  static const String customerTeamMembersScreen = "/CustomerTeamMembersView";
 }

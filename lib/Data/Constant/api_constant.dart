@@ -46,6 +46,10 @@ class ApiConstant {
   static String getPromotionalMessage = '$baseurl/Dashboard/PromoMessage';
   static String SavePromoMessage = '$baseurl/Master/Admin/SavePromoMessage';
   static String getGstTaxList = '$baseurl/Master/GetGstTaxList';
+  static String getTeamMembers = '$baseurl/Dashboard/GetTeamMembers';
+  static String saveTeamMember = '$baseurl/Dashboard/Admin/SaveTeamMember';
+  static String deleteTeamMember(dynamic id) =>
+      '$baseurl/Dashboard/Admin/DeleteTeamMember/$id';
 
 
   static List<CustomerData> customerList = [];

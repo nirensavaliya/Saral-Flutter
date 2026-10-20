@@ -59,7 +59,7 @@ class _OrderSuccessViewState extends State<OrderSuccessView>
     final isAdmin = GetStorageData.readBoolean(GetStorageData.isAdmin);
     final isEmployee = GetStorageData.readBoolean(GetStorageData.isEmployee);
     if (isEmployee && !isAdmin) {
-      Get.offAllNamed(AppRoutes.employeeHomeScreen);
+      Get.offAllNamed(AppRoutes.dashboardScreen);
     } else {
       Get.offAllNamed(AppRoutes.dashboardScreen);
     }

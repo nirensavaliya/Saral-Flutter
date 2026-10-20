@@ -88,7 +88,14 @@ class ApiService {
       );
       return response;
     } on DioException catch (e) {
-      throw Exception(e.response?.data?["message"] ?? "API Error");
+      final data = e.response?.data;
+      String message = "API Error";
+      if (data is Map && data["message"] != null) {
+        message = data["message"].toString();
+      } else if (e.message != null && e.message!.isNotEmpty) {
+        message = e.message!;
+      }
+      throw Exception(message);
     }
   }
 

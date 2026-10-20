@@ -552,7 +552,7 @@ class LoginController extends GetxController with GetSingleTickerProviderStateMi
 
         } else {
           setRole("Employee");
-          Get.offAllNamed(AppRoutes.employeeHomeScreen);
+          Get.offAllNamed(AppRoutes.dashboardScreen);
           print('isAdmin:: else---- ${response.data}');
 
         }

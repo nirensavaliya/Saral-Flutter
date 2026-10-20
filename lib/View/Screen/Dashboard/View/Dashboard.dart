@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:saral/Common/Get_Storage.dart';
 import 'package:saral/View/Screen/Admin/View/admin_home_view.dart';
-import 'package:saral/View/Screen/Admin/View/admin_product_view.dart';
+import 'package:saral/View/Screen/Admin/View/admin_product_list_view.dart';
 import 'package:saral/View/Screen/Admin/View/admin_report_view.dart';
 import 'package:saral/View/Screen/ContactUs/view/ContactUs.dart';
 import 'package:saral/View/Screen/Home/Controller/HomeController.dart';
 import 'package:saral/View/Screen/Home/View/HomeView.dart';
 import 'package:saral/View/Screen/Pending%20Sale%20Order/View/pending_sale_order_view.dart';
 import 'package:saral/View/Screen/Profile/view/ProfileScreen.dart';
+import 'package:saral/View/Screen/Sales Employee/View/employee_home_view.dart';
 import 'package:saral/View/Widget/Bottombar.dart';
 
 import '../../Pending Sale Order/Controller/pedning_sale_order_controller.dart';
@@ -24,7 +25,8 @@ class Dashboard extends StatelessWidget {
       }
       Get.put(PendingSaleOrderController());
     }
-    if (GetStorageData.readBoolean(GetStorageData.isCustomer)) {
+    if (GetStorageData.readBoolean(GetStorageData.isCustomer) ||
+        GetStorageData.readBoolean(GetStorageData.isEmployee)) {
       Get.put(ProfileController());
     }
   }
@@ -32,10 +34,18 @@ class Dashboard extends StatelessWidget {
   HomeController get dashboardController => Get.find<HomeController>();
 
   final bool isAdmin = GetStorageData.readBoolean(GetStorageData.isAdmin);
+  final bool isEmployee =
+      GetStorageData.readBoolean(GetStorageData.isEmployee);
 
   List<Widget> get screens => [
-        isAdmin ? AdminHomeView() : HomeView(),
-        isAdmin ? AdminProductView() : PendingSaleOrderView(),
+        isAdmin
+            ? AdminHomeView()
+            : isEmployee
+                ? EmployeeHomeView()
+                : HomeView(),
+        (isAdmin || isEmployee)
+            ? const AdminProductListView()
+            : PendingSaleOrderView(),
         Contactus(showBackButton: false),
         isAdmin ? const AdminReportView() : ProfileScreen(),
       ];
@@ -49,6 +59,7 @@ class Dashboard extends StatelessWidget {
             currentIndex: dashboardController.selectedIndex.value,
             onTap: dashboardController.changeTab,
             isAdmin: isAdmin,
+            isEmployee: isEmployee,
           ),
         ));
   }

@@ -65,6 +65,14 @@ class AdminReportView extends StatelessWidget {
               );
             },
           ),
+          _ReportTile(
+            icon: Icons.groups_outlined,
+            title: "Team Members",
+            subtitle: "Add and edit team members",
+            onTap: () {
+              Get.toNamed(AppRoutes.teamMemberListScreen);
+            },
+          ),
         ],
       ),
       ),

@@ -6,12 +6,14 @@ class CustomBottomBar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
   final bool isAdmin;
+  final bool isEmployee;
 
   const CustomBottomBar({
     super.key,
     required this.currentIndex,
     required this.onTap,
     this.isAdmin = false,
+    this.isEmployee = false,
   });
 
   static const Color _activeColor = AppColors.brandRed;
@@ -49,7 +51,7 @@ class CustomBottomBar extends StatelessWidget {
                 label: "Home",
                 onTap: () => onTap(0),
               ),
-              if (isAdmin)
+              if (isAdmin || isEmployee)
                 _BottomNavItem(
                   index: 1,
                   currentIndex: currentIndex,

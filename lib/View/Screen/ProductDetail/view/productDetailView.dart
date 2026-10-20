@@ -183,7 +183,7 @@ class _ProductDetailViewState extends State<ProductDetailView> {
               CommonText(
                 text: item?.itemName ?? "--",
                 fontFamily: FontFamily.poppinsBold,
-                fontSize: 20,
+                fontSize: 16,
                 color: AppColors.black,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -318,10 +318,10 @@ class _ProductDetailViewState extends State<ProductDetailView> {
             child: CommonText(
               text: (value ?? "").trim().isEmpty ? "--" : value!.trim(),
               fontFamily: resolvedFont,
-              fontSize: 16,
+              fontSize: 15,
               color: resolvedColor,
               textAlign: TextAlign.end,
-              maxLines: 2,
+              maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
           ),

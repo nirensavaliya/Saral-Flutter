@@ -8,6 +8,7 @@ import 'package:saral/View/Screen/Sale Order/Model/sale_order_model.dart';
 import 'package:saral/View/Screen/Sale Order/Model/sales_order_cart_model.dart';
 import 'package:saral/View/Widget/Common_AppBar.dart';
 import 'package:saral/View/Widget/Common_Text.dart';
+import 'package:saral/View/Widget/catalog_image_placeholder.dart';
 import 'package:saral/View/Widget/common_textfild.dart';
 
 import '../../../../Common/Global.dart';
@@ -194,9 +195,14 @@ class _CartGroupCard extends StatefulWidget {
 }
 
 class _CartGroupCardState extends State<_CartGroupCard> {
-  bool isExpanded = false;
+  bool isExpanded = true;
 
   SalesOrderCartModel get cart => widget.cart;
+
+  bool get _isProductCart {
+    final name = (cart.customerName ?? '').trim();
+    return name.isEmpty || name.toLowerCase() == 'product cart';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -218,66 +224,63 @@ class _CartGroupCardState extends State<_CartGroupCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          InkWell(
-            onTap: () {
-              setState(() {
-                isExpanded = !isExpanded;
-              });
-            },
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CommonText(
-                          text: cart.customerName?.isNotEmpty == true
-                              ? cart.customerName!
-                              : 'Saved Cart',
-                          fontFamily: FontFamily.poppinsSemiBold,
-                          fontSize: 15,
-                          color: Colors.black87,
-                        ),
-                        const SizedBox(height: 4),
-                        CommonText(
-                          text:
-                              'Items: ${totals['totalItem']}  •  Net: ${totals['netTotal']}',
-                          fontFamily: FontFamily.poppinsMedium,
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
-                      ],
+          if (!_isProductCart)
+            InkWell(
+              onTap: () {
+                setState(() {
+                  isExpanded = !isExpanded;
+                });
+              },
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CommonText(
+                            text: cart.customerName ?? 'Saved Cart',
+                            fontFamily: FontFamily.poppinsSemiBold,
+                            fontSize: 15,
+                            color: Colors.black87,
+                          ),
+                          const SizedBox(height: 4),
+                          CommonText(
+                            text:
+                                'Items: ${totals['totalItem']}  •  Net: ${totals['netTotal']}',
+                            fontFamily: FontFamily.poppinsMedium,
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Icon(
-                    isExpanded
-                        ? Icons.keyboard_arrow_up_rounded
-                        : Icons.keyboard_arrow_down_rounded,
-                    color: AppColors.brandRed,
-                  ),
-                  IconButton(
-                    onPressed: widget.onRemoveCart,
-                    icon: const Icon(
-                      Icons.delete_outline,
-                      color: Colors.redAccent,
+                    Icon(
+                      isExpanded
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      color: AppColors.brandRed,
                     ),
-                  ),
-                ],
+                    IconButton(
+                      onPressed: widget.onRemoveCart,
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Colors.redAccent,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
           if (isExpanded) ...[
-            Divider(height: 1, color: Colors.grey.shade300),
-            if ((cart.savedAt ?? '').isNotEmpty)
-              _detailRow('Saved At', _formatSavedAt(cart.savedAt!)),
-            const SizedBox(height: 4),
+            if (!_isProductCart)
+              Divider(height: 1, color: Colors.grey.shade300),
             ...List.generate(cart.items.length, (index) {
               final item = cart.items[index];
               final currentQty = item.qty ?? 1;
               return Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
                 child: _CartItemCard(
                   item: item,
                   onRemove: () => widget.onRemoveItem(index),
@@ -288,53 +291,17 @@ class _CartGroupCardState extends State<_CartGroupCard> {
                 ),
               );
             }),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: _CartSummaryCard(
-                totals: totals,
-                gstType: widget.gstType,
-              ),
-            ),
+            // Padding(
+            //   padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            //   child: _CartSummaryCard(
+            //     totals: totals,
+            //     gstType: widget.gstType,
+            //   ),
+            // ),
           ],
         ],
       ),
     );
-  }
-
-  Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: CommonText(
-              text: label,
-              fontFamily: FontFamily.poppinsMedium,
-              fontSize: 12,
-              color: Colors.grey,
-            ),
-          ),
-          CommonText(
-            text: value,
-            fontFamily: FontFamily.poppinsSemiBold,
-            fontSize: 12,
-            color: Colors.black87,
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatSavedAt(String value) {
-    try {
-      final dt = DateTime.parse(value).toLocal();
-      final hour = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
-      final minute = dt.minute.toString().padLeft(2, '0');
-      final suffix = dt.hour >= 12 ? 'PM' : 'AM';
-      return '${dt.day}/${dt.month}/${dt.year} $hour:$minute $suffix';
-    } catch (_) {
-      return value;
-    }
   }
 }
 
@@ -358,128 +325,132 @@ class _CartItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imageUrl = (item.itemImage ?? '').trim();
+
     return Container(
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xffF8F8F8),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 8, 6),
-            child: Row(
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              width: 72,
+              height: 72,
+              child: imageUrl.isNotEmpty
+                  ? Image.network(
+                      imageUrl,
+                      width: 72,
+                      height: 72,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          const CatalogImagePlaceholder(
+                        width: 72,
+                        height: 72,
+                        showLabel: false,
+                      ),
+                    )
+                  : const CatalogImagePlaceholder(
+                      width: 72,
+                      height: 72,
+                      showLabel: false,
+                    ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: CommonText(
-                    text: item.itemName ?? '',
-                    fontFamily: FontFamily.poppinsSemiBold,
-                    fontSize: 14,
-                    color: Colors.black87,
-                  ),
+                CommonText(
+                  text: item.itemName ?? '--',
+                  fontFamily: FontFamily.poppinsSemiBold,
+                  fontSize: 14,
+                  color: Colors.black87,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                // GestureDetector(
-                //   onTap: onRemove,
-                //   child: const Icon(
-                //     Icons.close,
-                //     color: Colors.red,
-                //     size: 22,
-                //   ),
-                // ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: CommonText(
-                    text: 'Quantity',
-                    fontFamily: FontFamily.poppinsMedium,
+                const SizedBox(height: 4),
+                if ((item.unit ?? '').trim().isNotEmpty)
+                  CommonText(
+                    text: item.unit!.trim(),
+                    fontFamily: FontFamily.poppinsRegular,
                     fontSize: 12,
-                    color: Colors.grey,
+                    color: Colors.grey.shade600,
                   ),
+                const SizedBox(height: 6),
+                CommonText(
+                  text: '₹ ${item.price ?? 0}',
+                  fontFamily: FontFamily.poppinsBold,
+                  fontSize: 15,
+                  color: AppColors.black,
                 ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      InkWell(
-                        onTap: onDecrement,
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xffF8F8F8),
                         borderRadius: BorderRadius.circular(20),
-                        child: const Padding(
-                          padding: EdgeInsets.all(6),
-                          child: Icon(
-                            Icons.remove,
-                            size: 18,
-                            color: AppColors.brandRed,
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          InkWell(
+                            onTap: onDecrement,
+                            borderRadius: BorderRadius.circular(20),
+                            child: const Padding(
+                              padding: EdgeInsets.all(6),
+                              child: Icon(
+                                Icons.remove,
+                                size: 18,
+                                color: AppColors.brandRed,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: CommonText(
-                          text: _qtyLabel,
-                          fontFamily: FontFamily.poppinsSemiBold,
-                          fontSize: 13,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      InkWell(
-                        onTap: onIncrement,
-                        borderRadius: BorderRadius.circular(20),
-                        child: const Padding(
-                          padding: EdgeInsets.all(6),
-                          child: Icon(
-                            Icons.add,
-                            size: 18,
-                            color: AppColors.brandRed,
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            child: CommonText(
+                              text: _qtyLabel,
+                              fontFamily: FontFamily.poppinsSemiBold,
+                              fontSize: 13,
+                              color: Colors.black87,
+                            ),
                           ),
-                        ),
+                          InkWell(
+                            onTap: onIncrement,
+                            borderRadius: BorderRadius.circular(20),
+                            child: const Padding(
+                              padding: EdgeInsets.all(6),
+                              child: Icon(
+                                Icons.add,
+                                size: 18,
+                                color: AppColors.brandRed,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: onRemove,
+                      child: const Icon(
+                        Icons.delete_outline,
+                        color: Colors.redAccent,
+                        size: 22,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ),
-          _itemRow('Price', item.price?.toString() ?? '0'),
-          _itemRow(
-            'Net Amount',
-            item.netAmount?.toStringAsFixed(2) ?? '0.00',
-            highlight: true,
-          ),
-          const SizedBox(height: 6),
-        ],
-      ),
-    );
-  }
-
-  Widget _itemRow(String label, String value, {bool highlight = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: CommonText(
-              text: label,
-              fontFamily: FontFamily.poppinsMedium,
-              fontSize: 12,
-              color: Colors.grey,
-            ),
-          ),
-          CommonText(
-            text: value,
-            fontFamily: FontFamily.poppinsSemiBold,
-            fontSize: 13,
-            color: highlight ? AppColors.brandRed : Colors.black87,
           ),
         ],
       ),

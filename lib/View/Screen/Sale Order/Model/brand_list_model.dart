@@ -35,9 +35,9 @@ class BranddData {
   BranddData({this.brandID, this.brandName});
 
   BranddData.fromJson(Map<String, dynamic> json) {
-    brandID = json['brandID'];
-    brandName = json['brandName'];
-    imageUrl = json['imageUrl'];
+    brandID = json['brandID'] ?? json['BrandId'] ?? json['brandId'];
+    brandName = json['brandName'] ?? json['BrandName'];
+    imageUrl = json['imageUrl'] ?? json['ImageUrl'];
   }
 
   Map<String, dynamic> toJson() {

@@ -96,6 +96,7 @@ class ProductDetailController extends GetxController
       totalItem: detailsList.length.toString(),
       netTotal: netTotal.toStringAsFixed(2),
       customerName: "Product Cart",
+      mergeIntoToday: true,
     );
 
     if (Get.isRegistered<AddToCartController>()) {
@@ -154,6 +155,7 @@ class ProductDetailController extends GetxController
       taxableAmount: double.parse(itemTaxablePrice.toStringAsFixed(2)),
       netAmount: double.parse(itemNetAmount.toStringAsFixed(2)),
       grossAmount: double.parse(itemGrossAmount.toStringAsFixed(2)),
+      itemImage: item.displayImageUrl,
     );
   }
 

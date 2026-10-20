@@ -36,8 +36,7 @@ class SplashController extends GetxController {
 
       if (token != null && token.isNotEmpty && otp == "true") {
         if (isEmployee && !isAdmin) {
-          // Employee: no bottom bar — direct home
-          Get.offAllNamed(AppRoutes.employeeHomeScreen);
+          Get.offAllNamed(AppRoutes.dashboardScreen);
         } else {
           // Admin / Customer: Dashboard with bottom bar
           Get.offAllNamed(AppRoutes.dashboardScreen);

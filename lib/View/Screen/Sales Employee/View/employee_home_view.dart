@@ -279,7 +279,7 @@ class EmployeeHomeView extends StatelessWidget {
               icon: Icons.shopping_bag_outlined,
               title: "Product",
               subtitle: "Browse products by category",
-              onTap: () => Get.toNamed(AppRoutes.adminProductScreen),
+              onTap: () => Get.toNamed(AppRoutes.adminProductListScreen),
             ),
             _EmployeeTile(
               icon: Icons.pending_actions_outlined,
@@ -311,6 +311,12 @@ class EmployeeHomeView extends StatelessWidget {
                   isSuccess: true,
                 );
               },
+            ),
+            _EmployeeTile(
+              icon: Icons.groups_outlined,
+              title: "Team Members",
+              subtitle: "Add and edit team members",
+              onTap: () => Get.toNamed(AppRoutes.teamMemberListScreen),
             ),
           ],
         ),

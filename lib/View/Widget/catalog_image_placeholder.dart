@@ -17,45 +17,56 @@ class CatalogImagePlaceholder extends StatelessWidget {
     this.showLabel = true,
   });
 
-  double _logoSize(BoxConstraints constraints) {
-    final maxW = constraints.maxWidth.isFinite ? constraints.maxWidth : 80.0;
-    final maxH = constraints.maxHeight.isFinite ? constraints.maxHeight : 80.0;
-    final resolvedW = (width != null && width!.isFinite) ? width! : maxW;
-    final resolvedH = (height != null && height!.isFinite) ? height! : maxH;
-    return (resolvedH < resolvedW ? resolvedH : resolvedW) * 0.35;
-  }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final logo = _logoSize(constraints).clamp(28.0, 56.0);
+        final maxW = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : (width ?? 80);
+        final maxH = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : (height ?? 80);
+        final shortest = maxW < maxH ? maxW : maxH;
+        final canShowLabel = showLabel && maxH >= 88 && maxW >= 72;
+        final logo = (shortest * (canShowLabel ? 0.32 : 0.55)).clamp(12.0, 56.0);
 
         return Container(
           width: width,
           height: height,
           color: const Color(0xFFF4F4F4),
           alignment: Alignment.center,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset(
-                AppImages.logoImg,
-                width: logo,
-                height: logo,
-                fit: BoxFit.contain,
-              ),
-              if (showLabel) ...[
-                const SizedBox(height: 8),
-                 CommonText(
-                  text: "NO IMAGE AVAILABLE",
-                  fontFamily: FontFamily.poppinsMedium,
-                  fontSize: 11,
-                  color: Colors.grey,
+          child: ClipRect(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      AppImages.logoImg,
+                      width: logo,
+                      height: logo,
+                      fit: BoxFit.contain,
+                    ),
+                    if (canShowLabel) ...[
+                      const SizedBox(height: 6),
+                      CommonText(
+                        text: "NO IMAGE AVAILABLE",
+                        fontFamily: FontFamily.poppinsMedium,
+                        fontSize: 11,
+                        color: Colors.grey,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-            ],
+              ),
+            ),
           ),
         );
       },

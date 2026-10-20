@@ -10,6 +10,7 @@ import 'package:saral/Data/Constant/Api_Service.dart';
 import 'package:saral/Data/Constant/api_constant.dart';
 import 'package:saral/View/Constant/App_Images.dart';
 import 'package:saral/View/Constant/App_font.dart';
+import 'package:saral/View/Screen/Admin/Model/team_member_model.dart';
 import 'package:saral/View/Screen/Home/Model/GetItemListModel.dart';
 import 'package:saral/View/Screen/Home/Model/GetReportItemListModel.dart';
 import 'package:saral/View/Screen/Home/Model/categoryListModel.dart';
@@ -36,6 +37,8 @@ class HomeController extends GetxController {
   RxBool isGetCategory = false.obs;
   RxBool isGetBrand = false.obs;
   RxBool isGetSubCategory = false.obs;
+  final RxList<TeamMemberData> teamMembers = <TeamMemberData>[].obs;
+  final RxBool isTeamMembersLoading = false.obs;
   /// VIEW ALL → full-screen brands / categories grid
   RxBool showAllCategories = false.obs;
   RxBool showAllBrands = false.obs;
@@ -89,9 +92,7 @@ class HomeController extends GetxController {
 
     final query = value.trim();
     if (query.isEmpty) {
-      itemList.clear();
-      _resetPaging();
-      isItemListLoading.value = false;
+      itemListApi(force: true);
       return;
     }
 
@@ -104,13 +105,6 @@ class HomeController extends GetxController {
 
   void submitProductSearch() {
     _searchDebounce?.cancel();
-    final query = productSearchQuery.value.trim();
-    if (query.isEmpty) {
-      itemList.clear();
-      _resetPaging();
-      isItemListLoading.value = false;
-      return;
-    }
     itemListApi(force: true);
   }
 
@@ -118,9 +112,7 @@ class HomeController extends GetxController {
     _searchDebounce?.cancel();
     productSearchController.clear();
     productSearchQuery.value = '';
-    itemList.clear();
-    _resetPaging();
-    isItemListLoading.value = false;
+    itemListApi(force: true);
   }
 
   void toggleProductSearchField() {
@@ -186,6 +178,9 @@ class HomeController extends GetxController {
     // getCategoryList();
     // getCategoryListPagination();
     scrollController.addListener(_onScroll);
+    if (GetStorageData.readBoolean(GetStorageData.isCustomer)) {
+      isTeamMembersLoading.value = true;
+    }
   }
 
   @override
@@ -195,13 +190,45 @@ class HomeController extends GetxController {
   }
 
   Future<void> _bootstrap() async {
-    await loadGstTaxList();
+    final isCustomer = GetStorageData.readBoolean(GetStorageData.isCustomer);
+    if (isCustomer) {
+      fetchTeamMembers();
+    }
     apiOfferImageMessage();
-    await loadBrandListIfNeeded();
+    await Future.wait([
+      loadGstTaxList(),
+      loadBrandListIfNeeded(),
+      getCategoryList(),
+    ]);
     await getSubCategoryList(
       brandId: selectedBrandData.value?.brandID,
       categoryId: selectedCategory.value?.categoryID,
     );
+    await itemListApi(force: true);
+  }
+
+  Future<void> fetchTeamMembers() async {
+    isTeamMembersLoading.value = true;
+    try {
+      final token = GetStorageData.readString(GetStorageData.token);
+      final response = await _apiService.getRequest(
+        ApiConstant.getTeamMembers,
+        headers: {
+          "Authorization": "Bearer $token",
+          "accept": "*/*",
+        },
+      );
+      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+        final model = TeamMemberListModel.fromJson(
+          response.data as Map<String, dynamic>,
+        );
+        teamMembers.value = model.data ?? [];
+      }
+    } catch (e) {
+      log('fetchTeamMembers error: $e');
+    } finally {
+      isTeamMembersLoading.value = false;
+    }
   }
 
   Future<void> loadGstTaxList() async {
@@ -249,8 +276,7 @@ class HomeController extends GetxController {
 
     if (scrollController.position.pixels >=
         scrollController.position.maxScrollExtent - 200) {
-      if (selectedSubCategory.value != null ||
-          productSearchQuery.value.trim().isNotEmpty) {
+      if (!showAllBrands.value && !showAllCategories.value) {
         itemListApi(loadMore: true);
       }
     }
@@ -324,9 +350,14 @@ class HomeController extends GetxController {
         headers: {"Authorization": "Bearer $companyToken"},
       );
       print("dashboard Element-----${response.data}");
-      final getCategory = CategoryListModel.fromJson(response.data);
-      if (response.statusCode == 200) {
-        categoryListData.value = getCategory.data ?? [];
+      if (response.statusCode == 200 && response.data is Map) {
+        final getCategory = CategoryListModel.fromJson(
+          Map<String, dynamic>.from(response.data as Map),
+        );
+        final list = getCategory.data ?? [];
+        if (list.isNotEmpty || brandId == null) {
+          categoryListData.value = list;
+        }
       }
     } catch (e) {
       print("Api Error ---$e");
@@ -397,9 +428,14 @@ class HomeController extends GetxController {
 
     _showAppLoader();
     try {
-      if (value.brandID != null) {
+      final isCustomer = GetStorageData.readBoolean(GetStorageData.isCustomer);
+      if (!isCustomer && value.brandID != null) {
         await getCategoryList(brandId: value.brandID);
       }
+      if (categoryListData.isEmpty) {
+        await getCategoryList();
+      }
+      await itemListApi(force: true);
     } finally {
       _hideAppLoader();
     }
@@ -419,7 +455,9 @@ class HomeController extends GetxController {
     _showAppLoader();
     try {
       await getBrandList();
+      await getCategoryList();
       await getSubCategoryList();
+      await itemListApi(force: true);
     } finally {
       _hideAppLoader();
     }
@@ -437,7 +475,6 @@ class HomeController extends GetxController {
     selectedCategory.value = value;
     selectedSubCategory.value = null;
     subCategoryListData.clear();
-    _resetPaging();
     isItemListLoading.value = false;
     update();
 
@@ -446,6 +483,7 @@ class HomeController extends GetxController {
         categoryId: value.categoryID,
         brandId: selectedBrandData.value?.brandID,
       );
+      await itemListApi(force: true);
     } finally {
       update();
     }
@@ -551,6 +589,7 @@ class HomeController extends GetxController {
       } else {
         await getSubCategoryList();
       }
+      await itemListApi(force: true);
     } finally {
       _hideAppLoader();
     }
@@ -621,9 +660,6 @@ class HomeController extends GetxController {
         isItemListLoading.value = true;
         page.value = 1;
         hasMoreData.value = true;
-        if (_usesPagingApi) {
-          itemList.clear();
-        }
       }
 
       String url =

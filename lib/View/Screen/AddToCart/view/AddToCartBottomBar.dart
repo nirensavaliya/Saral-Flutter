@@ -49,7 +49,29 @@ class AddToCartBottomBar extends StatelessWidget {
               color: Colors.black87,
             ),
             const SizedBox(height: 5),
-            _summaryRow("Total", totals['total'] ?? '0.00'),
+            Row(
+              children: [
+                Expanded( 
+                  child: Column(
+                    children: [
+                      _summaryRow("Total :", totals['total'] ?? '0.00'),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 5),
+                Expanded(
+                  child: Column(
+                    children: [
+                      _summaryRow(
+                        "TotalItem :",
+                        totals['totalItem'] ?? '0',
+                        muted: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -57,20 +79,20 @@ class AddToCartBottomBar extends StatelessWidget {
                   child: Column(
                     children: [
                       _summaryRow(
-                        "Dis. Total",
+                        "Dis :",
                         totals['discountTotal'] ?? '0.00',
                         muted: true,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 15),
+                const SizedBox(width: 7),
                 if (_isIgst)
                   Expanded(
                     child: Column(
                       children: [
                         _summaryRow(
-                          "IGST",
+                          "IGST :",
                           totals['iGstTotal'] ?? '0.00',
                           muted: true,
                         ),
@@ -82,18 +104,19 @@ class AddToCartBottomBar extends StatelessWidget {
                     child: Column(
                       children: [
                         _summaryRow(
-                          "CGST",
+                          "CGST :",
                           totals['cGstTotal'] ?? '0.00',
                           muted: true,
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(width: 7),
                   Expanded(
                     child: Column(
                       children: [
                         _summaryRow(
-                          "SGST",
+                          "SGST :",
                           totals['sGstTotal'] ?? '0.00',
                           muted: true,
                         ),
@@ -103,11 +126,7 @@ class AddToCartBottomBar extends StatelessWidget {
                 ],
               ],
             ),
-            _summaryRow(
-              "TotalItem",
-              totals['totalItem'] ?? '0',
-              muted: true,
-            ),
+
             Divider(color: Colors.grey.shade300, height: 16),
             _summaryRow(
               "NetTotal",

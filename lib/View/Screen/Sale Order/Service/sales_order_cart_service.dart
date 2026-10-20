@@ -17,9 +17,58 @@ class SalesOrderCartService {
     String? orderNo,
     int? customerId,
     String? customerName,
+    bool mergeIntoToday = false,
   }) {
     if (items.isEmpty) {
       return Future.value();
+    }
+
+    final carts = loadAll();
+    if (mergeIntoToday) {
+      final todayCarts = carts
+          .where(
+            (cart) =>
+                _isSameCalendarDay(cart.savedAt) &&
+                _sameCartCustomer(cart, customerId, customerName),
+          )
+          .toList();
+
+      if (todayCarts.isNotEmpty) {
+        final keep = todayCarts.first;
+        var mergedItems = <SaleOrderDetails>[];
+        for (final todayCart in todayCarts) {
+          mergedItems = _mergeLineItems(mergedItems, todayCart.items);
+        }
+        mergedItems = _mergeLineItems(mergedItems, items);
+        final totals = _totalsFromItems(mergedItems);
+
+        final mergedCart = SalesOrderCartModel(
+          cartId: keep.cartId,
+          items: mergedItems,
+          total: totals['total']!,
+          discountTotal: totals['discountTotal']!,
+          cGstTotal: totals['cGstTotal']!,
+          sGstTotal: totals['sGstTotal']!,
+          iGstTotal: totals['iGstTotal']!,
+          totalItem: totals['totalItem']!,
+          netTotal: totals['netTotal']!,
+          orderNo: keep.orderNo ?? orderNo,
+          customerId: keep.customerId ?? customerId,
+          customerName: keep.customerName ?? customerName,
+          savedAt: keep.savedAt ?? DateTime.now().toIso8601String(),
+        );
+
+        final todayIds = todayCarts.map((c) => c.cartId).toSet();
+        final remaining = carts
+            .where((cart) => !todayIds.contains(cart.cartId))
+            .toList();
+        remaining.insert(0, mergedCart);
+
+        return GetStorageData.saveObject(
+          _storageKey,
+          remaining.map((e) => e.toJson()).toList(),
+        );
+      }
     }
 
     final cart = SalesOrderCartModel(
@@ -37,12 +86,101 @@ class SalesOrderCartService {
       customerName: customerName,
       savedAt: DateTime.now().toIso8601String(),
     );
-    final carts = loadAll();
     carts.insert(0, cart);
     return GetStorageData.saveObject(
       _storageKey,
       carts.map((e) => e.toJson()).toList(),
     );
+  }
+
+  static bool _isSameCalendarDay(String? iso) {
+    if (iso == null || iso.trim().isEmpty) return false;
+    final dt = DateTime.tryParse(iso);
+    if (dt == null) return false;
+    final now = DateTime.now();
+    return dt.year == now.year && dt.month == now.month && dt.day == now.day;
+  }
+
+  static bool _sameCartCustomer(
+    SalesOrderCartModel cart,
+    int? customerId,
+    String? customerName,
+  ) {
+    if (customerId != null && cart.customerId != null) {
+      return cart.customerId == customerId;
+    }
+    return (cart.customerName ?? '').trim() == (customerName ?? '').trim();
+  }
+
+  static bool _isSameLine(SaleOrderDetails a, SaleOrderDetails b) {
+    return a.itemId != null &&
+        b.itemId != null &&
+        a.itemId == b.itemId &&
+        (a.unit ?? '') == (b.unit ?? '');
+  }
+
+  static List<SaleOrderDetails> _mergeLineItems(
+    List<SaleOrderDetails> existing,
+    List<SaleOrderDetails> incoming,
+  ) {
+    final merged = List<SaleOrderDetails>.from(existing);
+    for (final item in incoming) {
+      final index = merged.indexWhere((e) => _isSameLine(e, item));
+      if (index == -1) {
+        merged.add(item);
+        continue;
+      }
+      final old = merged[index];
+      merged[index] = SaleOrderDetails(
+        itemId: old.itemId,
+        itemName: old.itemName ?? item.itemName,
+        unit: old.unit ?? item.unit,
+        qty: (old.qty ?? 0) + (item.qty ?? 0),
+        price: old.price ?? item.price,
+        discountPer: old.discountPer ?? item.discountPer,
+        discount: old.discount ?? item.discount,
+        totalDiscount: (old.totalDiscount ?? 0) + (item.totalDiscount ?? 0),
+        gstcodeId: old.gstcodeId ?? item.gstcodeId,
+        netPriceINCTax: old.netPriceINCTax ?? item.netPriceINCTax,
+        cgstPer: old.cgstPer ?? item.cgstPer,
+        cgstAmount: (old.cgstAmount ?? 0) + (item.cgstAmount ?? 0),
+        sgstPer: old.sgstPer ?? item.sgstPer,
+        sgstAmount: (old.sgstAmount ?? 0) + (item.sgstAmount ?? 0),
+        igstPer: old.igstPer ?? item.igstPer,
+        igstAmount: (old.igstAmount ?? 0) + (item.igstAmount ?? 0),
+        taxableAmount: (old.taxableAmount ?? 0) + (item.taxableAmount ?? 0),
+        netAmount: (old.netAmount ?? 0) + (item.netAmount ?? 0),
+        grossAmount: (old.grossAmount ?? 0) + (item.grossAmount ?? 0),
+        itemImage: old.itemImage ?? item.itemImage,
+      );
+    }
+    return merged;
+  }
+
+  static Map<String, String> _totalsFromItems(List<SaleOrderDetails> items) {
+    double totalAmt = 0;
+    double totalDiscount = 0;
+    double totalCGST = 0;
+    double totalSGST = 0;
+    double totalIGST = 0;
+    double totalNetAmount = 0;
+    for (final item in items) {
+      totalAmt += (item.price ?? 0) * (item.qty ?? 1);
+      totalDiscount += item.totalDiscount ?? 0;
+      totalCGST += item.cgstAmount ?? 0;
+      totalSGST += item.sgstAmount ?? 0;
+      totalIGST += item.igstAmount ?? 0;
+      totalNetAmount += item.netAmount ?? 0;
+    }
+    return {
+      'total': totalAmt.toStringAsFixed(2),
+      'discountTotal': totalDiscount.toStringAsFixed(2),
+      'cGstTotal': totalCGST.toStringAsFixed(2),
+      'sGstTotal': totalSGST.toStringAsFixed(2),
+      'iGstTotal': totalIGST.toStringAsFixed(2),
+      'totalItem': items.length.toString(),
+      'netTotal': totalNetAmount.toStringAsFixed(2),
+    };
   }
 
   static List<SalesOrderCartModel> loadAll() {
@@ -132,6 +270,7 @@ class SalesOrderCartService {
       taxableAmount: (item.taxableAmount ?? 0) * ratio,
       netAmount: (item.netAmount ?? 0) * ratio,
       grossAmount: (item.grossAmount ?? 0) * ratio,
+      itemImage: item.itemImage,
     );
 
     double totalAmt = 0;

@@ -8,16 +8,23 @@ import 'package:saral/View/Screen/Admin/Controller/item_list_controller.dart';
 import 'package:saral/View/Screen/Admin/Controller/offer_image_controller.dart';
 import 'package:saral/View/Screen/Admin/Controller/promo_message_controller.dart';
 import 'package:saral/View/Screen/Admin/Controller/show_report_controller.dart';
+import 'package:saral/View/Screen/Admin/Controller/team_member_controller.dart';
+import 'package:saral/View/Screen/Admin/Controller/admin_product_list_controller.dart';
 import 'package:saral/View/Screen/Admin/View/admin_home_view.dart';
+import 'package:saral/View/Screen/Admin/View/admin_product_list_view.dart';
 import 'package:saral/View/Screen/Admin/View/admin_product_view.dart';
 import 'package:saral/View/Screen/Admin/View/admin_promo_message_view.dart';
 import 'package:saral/View/Screen/Admin/View/item_list_view.dart';
 import 'package:saral/View/Screen/Admin/View/offer_image_view.dart';
 import 'package:saral/View/Screen/Admin/View/show_report_view.dart';
+import 'package:saral/View/Screen/Admin/View/team_member_form_view.dart';
+import 'package:saral/View/Screen/Admin/View/team_member_list_view.dart';
 import 'package:saral/View/Screen/ContactUs/view/ContactUs.dart';
 import 'package:saral/View/Screen/Dashboard/View/Dashboard.dart';
 import 'package:saral/View/Screen/Home/Controller/HomeController.dart';
 import 'package:saral/View/Screen/Home/View/HomeView.dart';
+import 'package:saral/View/Screen/Home/View/customer_team_members_view.dart';
+import 'package:saral/View/Screen/Home/View/home_catalog_legacy_view.dart';
 import 'package:saral/View/Screen/Login/Controller/Company_Controller.dart';
 import 'package:saral/View/Screen/Login/Controller/LoginController.dart';
 import 'package:saral/View/Screen/Login/view/Login_screen.dart';
@@ -62,11 +69,20 @@ class AppPages {
         Get.lazyPut<CompanyController>(() => CompanyController());
         Get.lazyPut<LoginController>(() => LoginController());
       }),
-    ), GetPage(
+    ),     GetPage(
       name: AppRoutes.homeScreen,
       page: () => HomeView(),
       binding: BindingsBuilder(() {
         Get.lazyPut<HomeController>(() => HomeController());
+      }),
+    ),
+    GetPage(
+      name: AppRoutes.homeCatalogLegacyScreen,
+      page: () => HomeCatalogLegacyView(),
+      binding: BindingsBuilder(() {
+        if (!Get.isRegistered<HomeController>()) {
+          Get.lazyPut<HomeController>(() => HomeController());
+        }
       }),
     ),
     GetPage(
@@ -90,6 +106,15 @@ class AppPages {
         if (!Get.isRegistered<HomeController>()) {
           Get.lazyPut<HomeController>(() => HomeController());
         }
+      }),
+    ),
+    GetPage(
+      name: AppRoutes.adminProductListScreen,
+      page: () => const AdminProductListView(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<AdminProductListController>(
+          () => AdminProductListController(),
+        );
       }),
     ),
     GetPage(
@@ -195,6 +220,26 @@ class AppPages {
       page: () => const ItemListView(),
       binding: BindingsBuilder(() {
         Get.lazyPut<ItemListController>(() => ItemListController());
+      }),
+    ),
+    GetPage(
+      name: AppRoutes.teamMemberListScreen,
+      page: () => const TeamMemberListView(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<TeamMemberController>(() => TeamMemberController());
+      }),
+    ),
+    GetPage(
+      name: AppRoutes.customerTeamMembersScreen,
+      page: () => const CustomerTeamMembersView(),
+    ),
+    GetPage(
+      name: AppRoutes.teamMemberFormScreen,
+      page: () => const TeamMemberFormView(),
+      binding: BindingsBuilder(() {
+        if (!Get.isRegistered<TeamMemberController>()) {
+          Get.lazyPut<TeamMemberController>(() => TeamMemberController());
+        }
       }),
     ),
     GetPage(

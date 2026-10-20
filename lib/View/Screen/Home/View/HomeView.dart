@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -5,14 +8,17 @@ import 'package:saral/Common/Global.dart';
 import 'package:saral/View/Constant/App_Colors.dart';
 import 'package:saral/View/Constant/App_Images.dart';
 import 'package:saral/View/Constant/App_font.dart';
+import 'package:saral/View/Screen/Admin/Model/team_member_model.dart';
 import 'package:saral/View/Screen/Home/Controller/HomeController.dart';
 import 'package:saral/View/Screen/Home/Model/GetReportItemListModel.dart';
+import 'package:saral/View/Screen/Home/Model/categoryListModel.dart';
 import 'package:saral/View/Screen/Home/Model/subCategoryListModel.dart';
 import 'package:saral/View/Screen/Sale Order/Model/brand_list_model.dart';
 import 'package:saral/View/Utils/App_Routes.dart';
 import 'package:saral/View/Widget/catalog_grid_card.dart';
 import 'package:saral/View/Widget/catalog_image_placeholder.dart';
 import 'package:saral/View/Widget/Common_Text.dart';
+import 'package:saral/View/Widget/selectable_product_list.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../../../Common/Get_Storage.dart';
@@ -250,30 +256,32 @@ class HomeView extends GetView<HomeController> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _catalogTopHeader(controller),
+            Obx(() {
+              if (controller.hideHomeBanner ||
+                  controller.showProductSearchField.value) {
+                return const SizedBox.shrink();
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _ourTeamSection(controller),
+                  _ourBrandAutoScroll(controller),
+                ],
+              );
+            }),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _catalogTopHeader(controller),
+            ),
             Obx(() {
               if (controller.showProductSearchField.value) {
                 return const SizedBox.shrink();
               }
-              final hasBrand = controller.selectedBrandData.value != null;
-              final showAllBrands = controller.showAllBrands.value;
-              final showAllCategories = controller.showAllCategories.value;
-
-              if (!hasBrand && !showAllBrands) {
-                return Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: _brandsSection(controller),
-                );
-              }
-              if (hasBrand && !showAllCategories) {
-                return Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: _categoriesSection(controller),
-                );
-              }
-              return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _customerCatalogFilters(controller),
+              );
             }),
-            const SizedBox(height: 0),
             Expanded(
               child: NotificationListener<ScrollNotification>(
                 onNotification: (notification) {
@@ -295,160 +303,7 @@ class HomeView extends GetView<HomeController> {
                     !controller.showProductSearchField.value) {
                   return _allCategoriesGrid(controller);
                 }
-                final hasBrand =
-                    controller.selectedBrandData.value != null;
-                final hasCategory =
-                    controller.selectedCategory.value != null;
-                final hasSubCategory =
-                    controller.selectedSubCategory.value != null;
-                final showAllBrands = controller.showAllBrands.value;
-                final showAllCategories = controller.showAllCategories.value;
-                final searching = controller.showProductSearchField.value;
-                final hasSearchQuery =
-                    controller.productSearchQuery.value.trim().isNotEmpty;
-
-                // Search mode: same grid card UI as catalog
-                if (searching) {
-                  if (!hasSearchQuery) {
-                    return _catalogMessage(
-                      icon: Icons.search_rounded,
-                      message: "Type to search products",
-                    );
-                  }
-                  if (controller.isItemListLoading.value &&
-                      controller.itemList.isEmpty) {
-                    return _subCategoryGridShimmer();
-                  }
-                  final data = controller.displayedProductItems;
-                  if (data.isEmpty) {
-                    return _catalogMessage(
-                      icon: Icons.search_off_outlined,
-                      message: "No matching product found",
-                    );
-                  }
-                  return GridView.builder(
-                    controller: controller.scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.only(top: 8, bottom: 12),
-                    itemCount:
-                        data.length + (controller.isLoadingMore.value ? 1 : 0),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 0.78,
-                    ),
-                    itemBuilder: (context, index) {
-                      if (index == data.length) {
-                        return const Center(
-                          child: SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.brandRed,
-                            ),
-                          ),
-                        );
-                      }
-                      final item = data[index];
-                      return CatalogGridCard(
-                        imageUrl: item.displayImageUrl,
-                        title: item.itemName ?? "--",
-                        showDetails: false,
-                        onTap: () {
-                          Get.toNamed(
-                            AppRoutes.productDetailViewScreen,
-                            arguments: item,
-                          );
-                        },
-                      );
-                    },
-                  );
-                }
-
-                final showingSubCategories = !hasSubCategory &&
-                    !(hasBrand &&
-                        !hasCategory &&
-                        !showAllBrands &&
-                        !showAllCategories);
-
-                if (hasBrand &&
-                    !hasCategory &&
-                    !showAllBrands &&
-                    !showAllCategories) {
-                  return _catalogMessage(
-                    icon: Icons.grid_view_rounded,
-                    message: "Please select category",
-                  );
-                }
-                if (showingSubCategories) {
-                  if (controller.isGetSubCategory.value &&
-                      controller.subCategoryListData.isEmpty) {
-                    return _subCategoryGridShimmer();
-                  }
-                  return _subCategoryListPanel(controller);
-                }
-                if (hasSubCategory &&
-                    controller.isItemListLoading.value) {
-                  return _productGridShimmer();
-                }
-                if (!hasSubCategory) {
-                  if (controller.isGetSubCategory.value &&
-                      controller.subCategoryListData.isEmpty) {
-                    return _subCategoryGridShimmer();
-                  }
-                  return _subCategoryListPanel(controller);
-                }
-                final data = controller.displayedProductItems;
-                if (data.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.inventory_2_outlined,
-                          size: 48,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 10),
-                        CommonText(
-                          text: "No Product Found",
-                          fontFamily: FontFamily.poppinsSemiBold,
-                          color: Colors.grey,
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.separated(
-                  controller: controller.scrollController,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.only(bottom: 12),
-                  itemCount:
-                      data.length + (controller.isLoadingMore.value ? 1 : 0),
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    if (index == data.length) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Center(
-                          child: SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.brandRed,
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-                    return _productListCard(data[index]);
-                  },
-                );
+                return _customerItemListPanel(controller);
               }),
               ),
             ),
@@ -483,60 +338,44 @@ class HomeView extends GetView<HomeController> {
 
       final headerTitle = selectedName.isNotEmpty
           ? selectedName
-          : (showAll ? "Category" : "Brands");
+          : (showAll ? "Category" : "Products");
 
-      final showCategoryLabel = brand != null || showAll;
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      return Row(
         children: [
-          Row(
-            children: [
-              if (showBack) ...[
-                Material(
-                  color: AppColors.brandRed.withValues(alpha: 0.1),
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () => _onCatalogBack(controller),
-                    child: const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Icon(
-                        Icons.arrow_back_rounded,
-                        size: 20,
-                        color: AppColors.brandRed,
-                      ),
-                    ),
+          if (showBack) ...[
+            Material(
+              color: AppColors.brandRed.withValues(alpha: 0.1),
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => _onCatalogBack(controller),
+                child: const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Icon(
+                    Icons.arrow_back_rounded,
+                    size: 20,
+                    color: AppColors.brandRed,
                   ),
                 ),
-                const SizedBox(width: 10),
-              ],
-              if (searching)
-                Expanded(child: _homeSearchField(controller))
-              else
-                Expanded(
-                  child: CommonText(
-                    text: headerTitle,
-                    fontFamily: FontFamily.poppinsBold,
-                    fontSize: 18,
-                    color: AppColors.black,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              const SizedBox(width: 8),
-              _homeHeaderIcons(controller),
-            ],
-          ),
-          if (showCategoryLabel && !searching) ...[
-            const SizedBox(height: 6),
-            CommonText(
-              text: "Category",
-              fontFamily: FontFamily.poppinsMedium,
-              fontSize: 13,
-              color: const Color(0xFF6B7280),
+              ),
             ),
+            const SizedBox(width: 10),
           ],
+          if (searching)
+            Expanded(child: _homeSearchField(controller))
+          else
+            Expanded(
+              child: CommonText(
+                text: headerTitle,
+                fontFamily: FontFamily.poppinsBold,
+                fontSize: 18,
+                color: AppColors.black,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          const SizedBox(width: 8),
+          _homeHeaderIcons(controller),
         ],
       );
     });
@@ -619,6 +458,340 @@ class HomeView extends GetView<HomeController> {
     });
   }
 
+  Widget _customerCatalogFilters(HomeController controller) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _customerBrandDropdown(controller),
+        const SizedBox(height: 8),
+        _customerCategoryDropdown(controller),
+      ],
+    );
+  }
+
+  Widget _customerBrandDropdown(HomeController controller) {
+    return Obx(() {
+      final selected = controller.selectedBrandData.value;
+      final brands = controller.brandListData;
+      BranddData? selectedInList;
+      if (selected != null) {
+        for (final item in brands) {
+          if (item.brandID == selected.brandID) {
+            selectedInList = item;
+            break;
+          }
+        }
+      }
+      return _filterDropdownCard(
+        selected: selected != null,
+        isLoading: controller.isGetBrand.value && brands.isEmpty,
+        loadingText: 'Loading brands...',
+        child: DropdownButtonFormField<BranddData>(
+          value: selectedInList,
+          isExpanded: true,
+          dropdownColor: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          decoration: InputDecoration(
+            hintText: "Select Brand",
+            hintStyle: TextStyle(
+              fontFamily: FontFamily.poppinsMedium,
+              color: Colors.grey.shade500,
+              fontSize: 14,
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 8,
+            ),
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            prefixIcon: Icon(
+              Icons.storefront_outlined,
+              color: AppColors.brandRed.withOpacity(0.85),
+              size: 20,
+            ),
+          ),
+          hint: CommonText(
+            text: "Select Brand",
+            fontFamily: FontFamily.poppinsMedium,
+            fontSize: 14,
+            color: Colors.grey,
+          ),
+          icon: selected != null
+              ? const SizedBox.shrink()
+              : const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Colors.black54,
+                ),
+          items: brands.map((item) {
+            return DropdownMenuItem<BranddData>(
+              value: item,
+              child: _dropdownItem(
+                imageUrl: item.imageUrl,
+                title: item.brandName ?? "",
+              ),
+            );
+          }).toList(),
+          onChanged: controller.onBrandChanged,
+        ),
+        onClear: selected != null ? controller.clearBrandSelection : null,
+      );
+    });
+  }
+
+  Widget _customerCategoryDropdown(HomeController controller) {
+    return Obx(() {
+      final selected = controller.selectedCategory.value;
+      final categories = controller.categoryListData;
+      CategoryListData? selectedInList;
+      if (selected != null) {
+        for (final item in categories) {
+          if (item.categoryID == selected.categoryID) {
+            selectedInList = item;
+            break;
+          }
+        }
+      }
+      return _filterDropdownCard(
+        selected: selected != null,
+        isLoading: controller.isGetCategory.value && categories.isEmpty,
+        loadingText: 'Loading categories...',
+        child: DropdownButtonFormField<CategoryListData>(
+          value: selectedInList,
+          isExpanded: true,
+          dropdownColor: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          decoration: InputDecoration(
+            hintText: "Select Category",
+            hintStyle: TextStyle(
+              fontFamily: FontFamily.poppinsMedium,
+              color: Colors.grey.shade500,
+              fontSize: 14,
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 8,
+            ),
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            prefixIcon: Icon(
+              Icons.grid_view_rounded,
+              color: AppColors.brandRed.withOpacity(0.85),
+              size: 20,
+            ),
+          ),
+          hint: CommonText(
+            text: "Select Category",
+            fontFamily: FontFamily.poppinsMedium,
+            fontSize: 14,
+            color: Colors.grey,
+          ),
+          icon: selected != null
+              ? const SizedBox.shrink()
+              : const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Colors.black54,
+                ),
+          items: categories.map((item) {
+            return DropdownMenuItem<CategoryListData>(
+              value: item,
+              child: _dropdownItem(
+                imageUrl: item.imageUrl,
+                title: item.categoryName ?? "",
+              ),
+            );
+          }).toList(),
+          onChanged: controller.onCategoryChanged,
+        ),
+        onClear: selected != null ? controller.clearCategorySelection : null,
+      );
+    });
+  }
+
+  Widget _ourBrandAutoScroll(HomeController controller) {
+    return Obx(() {
+      final loading =
+          controller.isGetBrand.value && controller.brandListData.isEmpty;
+      final brands = controller.brandListData.toList();
+      if (!loading && brands.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(top: 4, bottom: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CommonText(
+              text: "Our Brands",
+              fontFamily: FontFamily.poppinsBold,
+              fontSize: 16,
+              color: AppColors.black,
+            ),
+            const SizedBox(height: 6),
+            if (loading)
+              _ourTeamShimmer()
+            else
+              _AutoScrollBrandRow(brands: brands),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _ourTeamSection(HomeController controller) {
+    return Obx(() {
+      final isLoading = controller.isTeamMembersLoading.value;
+      final members = controller.teamMembers.take(8).toList();
+      if (!isLoading && members.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(top: 2, bottom: 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: CommonText(
+                    text: "About Us",
+                    fontFamily: FontFamily.poppinsBold,
+                    fontSize: 16,
+                    color: AppColors.black,
+                  ),
+                ),
+                if (!isLoading)
+                  GestureDetector(
+                    onTap: () =>
+                        Get.toNamed(AppRoutes.customerTeamMembersScreen),
+                    child: CommonText(
+                      text: "See All",
+                      fontFamily: FontFamily.poppinsSemiBold,
+                      fontSize: 13,
+                      color: AppColors.brandRed,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            if (isLoading && members.isEmpty)
+              _ourTeamShimmer()
+            else
+              SizedBox(
+                height: 96,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: members.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    return _teamAvatarChip(members[index]);
+                  },
+                ),
+              ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _ourTeamShimmer() {
+    return SizedBox(
+      height: 96,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 6,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (_, __) => Shimmer.fromColors(
+          baseColor: Colors.grey.shade300,
+          highlightColor: Colors.grey.shade100,
+          child: SizedBox(
+            width: 72,
+            child: Column(
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF4F3F8),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  height: 8,
+                  width: 48,
+                  color: Colors.white,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _teamAvatarChip(TeamMemberData member) {
+    return SizedBox(
+      width: 72,
+      child: Column(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            padding: const EdgeInsets.all(2.5),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.brandRed, width: 2),
+            ),
+            child: ClipOval(
+              child: _teamMemberPhoto(member.displayImage, size: 59),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            member.name ?? "--",
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: FontFamily.poppinsMedium,
+              fontSize: 12,
+              color: const Color(0xFF6B7280),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _teamMemberPhoto(String? image, {double size = 56}) {
+    final placeholder = CatalogImagePlaceholder(
+      width: size,
+      height: size,
+      showLabel: false,
+    );
+    if (image == null || image.trim().isEmpty) return placeholder;
+    if (image.startsWith('http')) {
+      return Image.network(
+        image,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => placeholder,
+      );
+    }
+    try {
+      final raw = image.contains(',') ? image.split(',').last : image;
+      return Image.memory(
+        base64Decode(raw),
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => placeholder,
+      );
+    } catch (_) {
+      return placeholder;
+    }
+  }
+
   Widget _homeHeaderIcons(HomeController controller) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -626,6 +799,271 @@ class HomeView extends GetView<HomeController> {
         _homeFilterIcon(controller),
         const SizedBox(width: 6),
         // _homeBrandIcon(controller),
+      ],
+    );
+  }
+
+  Widget _customerFilterDropdowns(HomeController controller) {
+    return Column(
+      children: [
+        Obx(() {
+          final selected = controller.selectedBrandData.value;
+          final brands = controller.brandListData;
+          BranddData? selectedInList;
+          if (selected != null) {
+            for (final item in brands) {
+              if (item.brandID == selected.brandID) {
+                selectedInList = item;
+                break;
+              }
+            }
+          }
+          return _filterDropdownCard(
+            selected: selected != null,
+            isLoading: controller.isGetBrand.value && brands.isEmpty,
+            loadingText: 'Loading brands...',
+            child: DropdownButtonFormField<BranddData>(
+              value: selectedInList,
+              isExpanded: true,
+              dropdownColor: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              decoration: InputDecoration(
+                hintText: "Select Brand",
+                hintStyle: TextStyle(
+                  fontFamily: FontFamily.poppinsMedium,
+                  color: Colors.grey.shade500,
+                  fontSize: 14,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                prefixIcon: Icon(
+                  Icons.storefront_outlined,
+                  color: AppColors.brandRed.withOpacity(0.85),
+                  size: 20,
+                ),
+              ),
+              hint: CommonText(
+                text: "Select Brand",
+                fontFamily: FontFamily.poppinsMedium,
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+              icon: selected != null
+                  ? const SizedBox.shrink()
+                  : const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: Colors.black54,
+                    ),
+              items: brands.map((item) {
+                return DropdownMenuItem<BranddData>(
+                  value: item,
+                  child: _dropdownItem(
+                    imageUrl: item.imageUrl,
+                    title: item.brandName ?? "",
+                  ),
+                );
+              }).toList(),
+              onChanged: controller.onBrandChanged,
+            ),
+            onClear: selected != null
+                ? controller.clearBrandSelection
+                : null,
+          );
+        }),
+        const SizedBox(height: 8),
+        Obx(() {
+          final selected = controller.selectedCategory.value;
+          final categories = controller.categoryListData;
+          CategoryListData? selectedInList;
+          if (selected != null) {
+            for (final item in categories) {
+              if (item.categoryID == selected.categoryID) {
+                selectedInList = item;
+                break;
+              }
+            }
+          }
+          return _filterDropdownCard(
+            selected: selected != null,
+            isLoading:
+                controller.isGetCategory.value && categories.isEmpty,
+            loadingText: 'Loading categories...',
+            child: DropdownButtonFormField<CategoryListData>(
+              value: selectedInList,
+              isExpanded: true,
+              dropdownColor: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              decoration: InputDecoration(
+                hintText: "Select Category",
+                hintStyle: TextStyle(
+                  fontFamily: FontFamily.poppinsMedium,
+                  color: Colors.grey.shade500,
+                  fontSize: 14,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                prefixIcon: Icon(
+                  Icons.grid_view_rounded,
+                  color: AppColors.brandRed.withOpacity(0.85),
+                  size: 20,
+                ),
+              ),
+              hint: CommonText(
+                text: "Select Category",
+                fontFamily: FontFamily.poppinsMedium,
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+              icon: selected != null
+                  ? const SizedBox.shrink()
+                  : const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: Colors.black54,
+                    ),
+              items: categories.map((item) {
+                return DropdownMenuItem<CategoryListData>(
+                  value: item,
+                  child: _dropdownItem(
+                    imageUrl: item.imageUrl,
+                    title: item.categoryName ?? "",
+                  ),
+                );
+              }).toList(),
+              onChanged: controller.onCategoryChanged,
+            ),
+            onClear: selected != null
+                ? controller.clearCategorySelection
+                : null,
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _filterDropdownCard({
+    required bool selected,
+    required bool isLoading,
+    required String loadingText,
+    required Widget child,
+    VoidCallback? onClear,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: selected
+            ? Border.all(color: AppColors.brandRed.withOpacity(0.35))
+            : Border.all(color: Colors.grey.shade300),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: isLoading
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      children: [
+                        const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.brandRed,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          loadingText,
+                          style: TextStyle(
+                            fontFamily: FontFamily.poppinsMedium,
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : child,
+          ),
+          if (onClear != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Material(
+                color: AppColors.brandRed.withOpacity(0.1),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: onClear,
+                  child: const Padding(
+                    padding: EdgeInsets.all(6),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 16,
+                      color: AppColors.brandRed,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dropdownItem({required String? imageUrl, required String title}) {
+    return Row(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            imageUrl ?? "",
+            width: 24,
+            height: 24,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              width: 24,
+              height: 24,
+              color: const Color(0xffF8F8F8),
+              child: const Icon(
+                Icons.image_not_supported_outlined,
+                size: 14,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: FontFamily.poppinsMedium,
+              fontSize: 14,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -925,20 +1363,29 @@ class HomeView extends GetView<HomeController> {
         return _horizontalChipShimmer();
       }
 
-      final brands = controller.brandListData;
+      final selected = controller.selectedBrandData.value;
+      final brands = _withSelectedFirst(
+        controller.brandListData.toList(),
+        (item) => _isSameBrand(selected, item),
+      );
       if (brands.isEmpty) return const SizedBox.shrink();
 
       return SizedBox(
-        height: 108,
+        height: 78,
         child: ListView.separated(
+          key: ValueKey(
+            'brands-${selected?.brandID}-${selected?.brandName}',
+          ),
           scrollDirection: Axis.horizontal,
+          clipBehavior: Clip.none,
           itemCount: brands.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          separatorBuilder: (_, __) => const SizedBox(width: 6),
           itemBuilder: (context, index) {
             final item = brands[index];
             return _circleChip(
               imageUrl: item.imageUrl,
               title: item.brandName ?? "",
+              isSelected: _isSameBrand(selected, item),
               onTap: () => controller.onBrandChanged(item),
             );
           },
@@ -983,40 +1430,205 @@ class HomeView extends GetView<HomeController> {
 
   Widget _categoriesSection(HomeController controller) {
     return Obx(() {
-      final selectedId = controller.selectedCategory.value?.categoryID;
-      final selectedName = controller.selectedCategory.value?.categoryName;
+      final selected = controller.selectedCategory.value;
+      final isLoading = selected == null &&
+          controller.isGetCategory.value &&
+          controller.categoryListData.isEmpty;
 
-      if (controller.isGetCategory.value &&
-          controller.categoryListData.isEmpty) {
-        return _horizontalChipShimmer();
-      }
-
-      final categories = controller.categoryListData.toList();
-      if (categories.isEmpty) return const SizedBox.shrink();
-
-      return SizedBox(
-        height: 108,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          itemCount: categories.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 10),
-          itemBuilder: (context, index) {
-            final item = categories[index];
-            final isSelected = selectedId != null
-                ? selectedId == item.categoryID
-                : (selectedName != null &&
-                    selectedName == item.categoryName);
-            return _circleChip(
-              imageUrl: item.imageUrl,
-              title: item.categoryName ?? "",
-              isSelected: isSelected,
-              onTap: () => controller.onCategoryChanged(item),
-            );
-          },
-        ),
+      final categories = _withSelectedFirst(
+        controller.categoryListData.toList(),
+        (item) => _isSameCategory(selected, item),
+      );
+      if (!isLoading && categories.isEmpty) return const SizedBox.shrink();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CommonText(
+            text: "Category",
+            fontFamily: FontFamily.poppinsBold,
+            fontSize: 16,
+            color: AppColors.black,
+          ),
+          const SizedBox(height: 4),
+          if (isLoading)
+            _horizontalChipShimmer()
+          else
+            SizedBox(
+              height: 78,
+              child: ListView.separated(
+                key: ValueKey(
+                  'categories-${selected?.categoryID}-${selected?.categoryName}',
+                ),
+                scrollDirection: Axis.horizontal,
+                clipBehavior: Clip.none,
+                physics: const BouncingScrollPhysics(),
+                itemCount: categories.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                itemBuilder: (context, index) {
+                  final item = categories[index];
+                  return _circleChip(
+                    imageUrl: item.imageUrl,
+                    title: item.categoryName ?? "",
+                    isSelected: _isSameCategory(selected, item),
+                    onTap: () => controller.onCategoryChanged(item),
+                  );
+                },
+              ),
+            ),
+        ],
       );
     });
+  }
+
+  Widget _customerItemListPanel(HomeController controller) {
+    if (controller.isItemListLoading.value && controller.itemList.isEmpty) {
+      return _itemListShimmer();
+    }
+    final data = controller.displayedProductItems;
+    final searching = controller.showProductSearchField.value;
+    final hasQuery = controller.productSearchQuery.value.trim().isNotEmpty;
+    if (data.isEmpty) {
+      return _catalogMessage(
+        icon: searching && hasQuery
+            ? Icons.search_off_outlined
+            : Icons.inventory_2_outlined,
+        message: searching && hasQuery
+            ? "No matching product found"
+            : "No Product Found",
+      );
+    }
+    return SelectableProductList(
+      items: data,
+      scrollController: controller.scrollController,
+      isLoadingMore: controller.isLoadingMore.value,
+      resetKey:
+          '${controller.selectedBrandData.value?.brandID}-${controller.selectedCategory.value?.categoryID}-${controller.productSearchQuery.value}',
+    );
+  }
+
+  Widget _variantCard({
+    required ItemListData item,
+    required VoidCallback onTap,
+  }) {
+    final unitCode = (item.unitCode ?? "").trim().isEmpty
+        ? "--"
+        : item.unitCode!.trim();
+    final brand = (item.brandName ?? "").trim();
+    final category = (item.category ?? "").trim();
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: SizedBox(
+                  width: 58,
+                  height: 58,
+                  child: _variantItemImage(item),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CommonText(
+                      text: item.itemName ?? "--",
+                      fontFamily: FontFamily.poppinsSemiBold,
+                      fontSize: 13,
+                      color: AppColors.black,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    CommonText(
+                      text: "₹ ${item.price ?? 0}",
+                      fontFamily: FontFamily.poppinsBold,
+                      fontSize: 13,
+                      color: AppColors.brandRed,
+                    ),
+                    const SizedBox(height: 4),
+                    CommonText(
+                      text: "Brand: ${brand.isEmpty ? "--" : brand}",
+                      fontFamily: FontFamily.poppinsRegular,
+                      fontSize: 11,
+                      color: Colors.grey.shade700,
+                    ),
+                    const SizedBox(height: 2),
+                    CommonText(
+                      text: "Category: ${category.isEmpty ? "--" : category}",
+                      fontFamily: FontFamily.poppinsRegular,
+                      fontSize: 11,
+                      color: Colors.grey.shade700,
+                    ),
+                    const SizedBox(height: 4),
+                    CommonText(
+                      text: "Unit: $unitCode",
+                      fontFamily: FontFamily.poppinsMedium,
+                      fontSize: 12,
+                      color: AppColors.black,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _variantItemImage(ItemListData item) {
+    final imageUrl = item.displayImageUrl?.trim();
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      return Image.network(
+        imageUrl,
+        width: 58,
+        height: 58,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const CatalogImagePlaceholder(
+          width: 58,
+          height: 58,
+          showLabel: false,
+        ),
+      );
+    }
+    return const CatalogImagePlaceholder(
+      width: 58,
+      height: 58,
+      showLabel: false,
+    );
+  }
+
+  Widget _itemListShimmer() {
+    return ListView.separated(
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 6,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (_, __) => Shimmer.fromColors(
+        baseColor: Colors.grey.shade300,
+        highlightColor: Colors.grey.shade100,
+        child: Container(
+          height: 88,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _subCategoryListPanel(HomeController controller) {
@@ -1219,11 +1831,11 @@ class HomeView extends GetView<HomeController> {
 
   Widget _horizontalChipShimmer() {
     return SizedBox(
-      height: 108,
+      height: 78,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: 5,
-        separatorBuilder: (_, __) => const SizedBox(width: 18),
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
         itemBuilder: (_, __) => Shimmer.fromColors(
           baseColor: Colors.grey.shade300,
           highlightColor: Colors.grey.shade100,
@@ -1246,6 +1858,41 @@ class HomeView extends GetView<HomeController> {
     );
   }
 
+  List<T> _withSelectedFirst<T>(
+    List<T> items,
+    bool Function(T item) isSelected,
+  ) {
+    final index = items.indexWhere(isSelected);
+    if (index <= 0) return items;
+    final selected = items.removeAt(index);
+    items.insert(0, selected);
+    return items;
+  }
+
+  bool _isSameBrand(BranddData? selected, BranddData item) {
+    if (selected == null) return false;
+    if (selected.brandID != null &&
+        item.brandID != null &&
+        selected.brandID == item.brandID) {
+      return true;
+    }
+    final selectedName = selected.brandName?.trim().toLowerCase() ?? "";
+    final itemName = item.brandName?.trim().toLowerCase() ?? "";
+    return selectedName.isNotEmpty && selectedName == itemName;
+  }
+
+  bool _isSameCategory(CategoryListData? selected, CategoryListData item) {
+    if (selected == null) return false;
+    if (selected.categoryID != null &&
+        item.categoryID != null &&
+        selected.categoryID == item.categoryID) {
+      return true;
+    }
+    final selectedName = selected.categoryName?.trim().toLowerCase() ?? "";
+    final itemName = item.categoryName?.trim().toLowerCase() ?? "";
+    return selectedName.isNotEmpty && selectedName == itemName;
+  }
+
   Widget _circleChip({
     required String? imageUrl,
     required String title,
@@ -1258,53 +1905,51 @@ class HomeView extends GetView<HomeController> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: SizedBox(
-          width: 72,
-          height: 108,
+          width: 58,
+          height: 78,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               Container(
-                width: 52,
-                height: 52,
+                width: 48,
+                height: 48,
+                padding: EdgeInsets.all(isSelected ? 2.5 : 1),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isSelected
-                      ? const Color(0xFFFFE8E8)
-                      : const Color(0xFFF4F3F8),
+                  color: Colors.white,
                   border: Border.all(
                     color: isSelected
                         ? AppColors.brandRed
                         : const Color(0xFFD1D5DB),
-                    width: isSelected ? 2 : 1,
+                    width: isSelected ? 2.5 : 1,
                   ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: AppColors.brandRed.withValues(alpha: 0.28),
-                            blurRadius: 5,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : null,
                 ),
-                child: ClipOval(
-                  child: Padding(
-                    padding: const EdgeInsets.all(9),
-                    child: Image.network(
-                      imageUrl ?? "",
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => Icon(
-                        Icons.campaign_outlined,
-                        size: 22,
-                        color: isSelected
-                            ? AppColors.brandRed
-                            : Colors.grey.shade600,
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSelected
+                        ? const Color(0xFFFFE8E8)
+                        : const Color(0xFFF4F3F8),
+                  ),
+                  child: ClipOval(
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Image.network(
+                        imageUrl ?? "",
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Icon(
+                          Icons.campaign_outlined,
+                          size: 18,
+                          color: isSelected
+                              ? AppColors.brandRed
+                              : Colors.grey.shade600,
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 title,
                 maxLines: 2,
@@ -1529,17 +2174,141 @@ class HomeView extends GetView<HomeController> {
     required IconData icon,
     required String message,
   }) {
-    return Center(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 40, color: Colors.grey.shade400),
+                const SizedBox(height: 8),
+                CommonText(
+                  text: message,
+                  fontFamily: FontFamily.poppinsSemiBold,
+                  color: Colors.grey,
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AutoScrollBrandRow extends StatefulWidget {
+  const _AutoScrollBrandRow({required this.brands});
+
+  final List<BranddData> brands;
+
+  @override
+  State<_AutoScrollBrandRow> createState() => _AutoScrollBrandRowState();
+}
+
+class _AutoScrollBrandRowState extends State<_AutoScrollBrandRow> {
+  final ScrollController _controller = ScrollController();
+  Timer? _timer;
+  static const double _chipWidth = 72;
+  static const double _gap = 12;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _start());
+  }
+
+  void _start() {
+    _timer?.cancel();
+    if (!mounted || widget.brands.length < 2) return;
+    _timer = Timer.periodic(const Duration(milliseconds: 30), (_) {
+      if (!mounted || !_controller.hasClients) return;
+      final cycle = widget.brands.length * (_chipWidth + _gap);
+      var next = _controller.offset + 0.7;
+      if (next >= cycle) next -= cycle;
+      _controller.jumpTo(next);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _AutoScrollBrandRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.brands.length != widget.brands.length) {
+      _start();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final brands = widget.brands;
+    final loop = brands.length < 2 ? brands : [...brands, ...brands];
+    return SizedBox(
+      height: 108,
+      child: IgnorePointer(
+        child: ListView.builder(
+          controller: _controller,
+          scrollDirection: Axis.horizontal,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: loop.length,
+          itemBuilder: (context, index) {
+            return Padding(
+              padding: const EdgeInsets.only(right: _gap),
+              child: _brandChip(loop[index]),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _brandChip(BranddData brand) {
+    return SizedBox(
+      width: _chipWidth,
+      height: 108,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 48, color: Colors.grey.shade400),
-          const SizedBox(height: 10),
-          CommonText(
-            text: message,
-            fontFamily: FontFamily.poppinsSemiBold,
-            color: Colors.grey,
+          Container(
+            width: 64,
+            height: 64,
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFFF4F3F8),
+              border: Border.all(color: const Color(0xFFD1D5DB)),
+            ),
+            child: ClipOval(
+              child: Image.network(
+                brand.imageUrl ?? "",
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Icon(
+                  Icons.storefront_outlined,
+                  size: 22,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            brand.brandName ?? "--",
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: FontFamily.poppinsMedium,
+              fontSize: 12,
+              color: const Color(0xFF6B7280),
+            ),
           ),
         ],
       ),

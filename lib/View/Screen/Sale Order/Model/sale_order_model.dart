@@ -156,6 +156,7 @@ class  SaleOrderDetails {
   double? taxableAmount;
   double? netAmount;
   double? grossAmount;
+  String? itemImage;
 
   SaleOrderDetails(
       {this.itemId,
@@ -176,7 +177,8 @@ class  SaleOrderDetails {
         this.igstAmount,
         this.taxableAmount,
         this.netAmount,
-        this.grossAmount});
+        this.grossAmount,
+        this.itemImage});
 
   SaleOrderDetails.fromJson(Map<String, dynamic> json) {
     itemId = json['itemId'];
@@ -198,6 +200,7 @@ class  SaleOrderDetails {
     taxableAmount = json['taxableAmount'];
     netAmount = json['netAmount'];
     grossAmount = json['grossAmount'];
+    itemImage = json['itemImage'];
   }
 
   Map<String, dynamic> toJson() {
@@ -221,6 +224,7 @@ class  SaleOrderDetails {
     data['taxableAmount'] = this.taxableAmount;
     data['netAmount'] = this.netAmount;
     data['grossAmount'] = this.grossAmount;
+    data['itemImage'] = this.itemImage;
     return data;
   }
 }

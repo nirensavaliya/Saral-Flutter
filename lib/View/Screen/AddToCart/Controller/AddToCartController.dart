@@ -64,7 +64,6 @@ class AddToCartController extends GetxController {
 
   void loadCarts() {
     carts = SalesOrderCartService.loadAll();
-    // Defer update so Home GetBuilder is not rebuilt mid-frame (route push).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!isClosed) update();
     });

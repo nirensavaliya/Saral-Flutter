@@ -372,7 +372,6 @@ class _AdminProductViewState extends State<AdminProductView> {
                 final hasSearchQuery =
                     controller.productSearchQuery.value.trim().isNotEmpty;
 
-                // Search mode — same catalog grid UI
                 if (searching) {
                   if (!hasSearchQuery) {
                     return _catalogMessage(

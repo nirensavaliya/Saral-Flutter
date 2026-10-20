@@ -10,13 +10,18 @@ class CategoryListModel {
   });
 
   factory CategoryListModel.fromJson(Map<String, dynamic> json) {
+    final raw = json["data"] ?? json["Data"];
     return CategoryListModel(
-      data: json["data"] == null
-          ? []
-          : List<CategoryListData>.from(
-          json["data"].map((x) => CategoryListData.fromJson(x))),
-      statusCode: json["statusCode"],
-      responseMsg: json["responseMsg"],
+      data: raw is List
+          ? raw
+              .whereType<Map>()
+              .map((x) => CategoryListData.fromJson(
+                    Map<String, dynamic>.from(x),
+                  ))
+              .toList()
+          : [],
+      statusCode: json["statusCode"] ?? json["StatusCode"],
+      responseMsg: json["responseMsg"] ?? json["ResponseMsg"],
     );
   }
 
@@ -44,10 +49,20 @@ class CategoryListData {
 
   factory CategoryListData.fromJson(Map<String, dynamic> json) {
     return CategoryListData(
-      categoryID: json["categoryID"],
-      categoryName: json["categoryName"],
-      imageUrl: json["imageUrl"],
+      categoryID: _readInt(
+        json["categoryID"] ?? json["CategoryId"] ?? json["categoryId"],
+      ),
+      categoryName: json["categoryName"]?.toString() ??
+          json["CategoryName"]?.toString(),
+      imageUrl: json["imageUrl"]?.toString() ?? json["ImageUrl"]?.toString(),
     );
+  }
+
+  static int? _readInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
   }
 
   Map<String, dynamic> toJson() {
